@@ -1,0 +1,24 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - db-configmap.yaml
+  - db-secret.yaml
+  - db.yaml
+  - backend-configmap.yaml
+  - backend-secret.yaml
+  - backend.yaml
+  - prestart-job.yaml
+  - frontend-configmap.yaml
+  - frontend-secret.yaml
+  - frontend.yaml
+  - adminer.yaml
+  - ingress.yaml
+
+images:
+  - name: backend
+    newName: ghcr.io/fastapi-traefik-devops/fastapi-backend
+    newTag: v0.1.0
+  - name: frontend
+    newName: ghcr.io/fastapi-traefik-devops/fastapi-frontend
+    newTag: v0.1.0
