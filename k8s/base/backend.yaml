@@ -26,6 +26,12 @@ spec:
                 name: backend-config
             - secretRef:
                 name: backend-secrets
+          startupProbe:
+            httpGet:
+              path: /api/v1/utils/health-check/
+              port: 8000
+            periodSeconds: 5
+            failureThreshold: 30
           readinessProbe:
             httpGet:
               path: /api/v1/utils/health-check/
