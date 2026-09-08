@@ -10,7 +10,6 @@ metadata:
     component: jenkins-agent
 spec:
   containers:
-
   - name: python-tester
     image: ghcr.io/astral-sh/uv:python3.10-bookworm-slim
     command: ['cat']
@@ -51,7 +50,6 @@ spec:
     }
 
     stages {
-
         stage('Checkout') {
             steps {
                 checkout scm
@@ -63,12 +61,9 @@ spec:
                 container('python-tester') {
                     sh '''
                         set -eu
-
                         echo "--- Testing Backend with UV ---"
                         cd backend
-
                         uv sync --frozen
-
                         # uv run pytest
                     '''
                 }
@@ -80,10 +75,8 @@ spec:
                 container('node-tester') {
                     sh '''
                         set -eu
-
                         echo "--- Verifying Frontend Dependencies ---"
                         cd frontend
-
                         npm ci
                     '''
                 }
@@ -95,14 +88,18 @@ spec:
                 container('buildkit') {
                     sh '''
                         set -eu
+                        echo "--- Starting BuildKit Daemon ---"
+                        buildkitd --debug &
+                        
+                        # Wait for socket initialization
+                        until buildctl debug workers; do sleep 1; done
 
                         echo "--- Building Backend Image via BuildKit ---"
-
-                        buildctl-daemonless.sh build \
+                        buildctl build \
                           --frontend dockerfile.v0 \
                           --local context="${WORKSPACE}/backend" \
                           --local dockerfile="${WORKSPACE}/backend" \
-                          --output "type=image,name=${BACKEND_IMG}:${TAG},${BACKEND_IMG}:latest,push=true" \
+                          --output "type=image,name=${BACKEND_IMG}:${TAG},name=${BACKEND_IMG}:latest,push=true" \
                           --progress=plain
 
                         echo "--- Backend image pushed successfully ---"
@@ -116,15 +113,13 @@ spec:
                 container('buildkit') {
                     sh '''
                         set -eu
-
                         echo "--- Building Frontend Image via BuildKit ---"
-
-                        buildctl-daemonless.sh build \
+                        buildctl build \
                           --frontend dockerfile.v0 \
                           --local context="${WORKSPACE}/frontend" \
                           --local dockerfile="${WORKSPACE}/frontend" \
                           --opt build-arg:VITE_API_URL=https://api.localhost \
-                          --output "type=image,name=${FRONTEND_IMG}:${TAG},${FRONTEND_IMG}:latest,push=true" \
+                          --output "type=image,name=${FRONTEND_IMG}:${TAG},name=${FRONTEND_IMG}:latest,push=true" \
                           --progress=plain
 
                         echo "--- Frontend image pushed successfully ---"
