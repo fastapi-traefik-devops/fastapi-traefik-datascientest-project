@@ -2,18 +2,23 @@ apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 
 resources:
-  - db-configmap.yaml
-  - db-secret.yaml
-  - db.yaml
-  - backend-configmap.yaml
-  - backend-secret.yaml
-  - backend.yaml
-  - prestart-job.yaml
-  - frontend-configmap.yaml
-  - frontend-secret.yaml
-  - frontend.yaml
-  - adminer.yaml
-  - ingress.yaml
+  - configmap-backend.yaml
+  - configmap-db.yaml
+  - configmap-frontend.yaml
+  - secret-backend.yaml
+  - secret-db.yaml
+  - secret-frontend.yaml
+  - pvc-db.yaml
+  - deployment-backend.yaml
+  - service-backend.yaml
+  - deployment-db.yaml
+  - service-db.yaml
+  - deployment-frontend.yaml
+  - service-frontend.yaml
+  - deployment-adminer.yaml
+  - service-adminer.yaml
+  - job-prestart.yaml
+  - ingress-app.yaml
 
 images:
   - name: backend

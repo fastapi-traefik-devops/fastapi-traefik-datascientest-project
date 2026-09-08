@@ -14,6 +14,8 @@ spec:
       labels:
         app: backend
     spec:
+      # Requires a pre-created "ghcr-pull-secret" (not managed by these
+      # manifests) in the target namespace to pull private GHCR images.
       imagePullSecrets:
         - name: ghcr-pull-secret
       containers:
@@ -21,6 +23,8 @@ spec:
           image: backend:latest
           ports:
             - containerPort: 8000
+          # backend-config/backend-secrets are also consumed by the prestart
+          # Job so both run against the same environment before the app starts.
           envFrom:
             - configMapRef:
                 name: backend-config
@@ -51,16 +55,3 @@ spec:
             limits:
               cpu: 500m
               memory: 512Mi
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: backend
-  labels:
-    app: backend
-spec:
-  selector:
-    app: backend
-  ports:
-    - port: 80
-      targetPort: 8000
