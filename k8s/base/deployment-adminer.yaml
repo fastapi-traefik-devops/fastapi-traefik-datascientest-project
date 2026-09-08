@@ -29,16 +29,3 @@ spec:
             limits:
               cpu: 200m
               memory: 128Mi
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: adminer
-  labels:
-    app: adminer
-spec:
-  selector:
-    app: adminer
-  ports:
-    - port: 80
-      targetPort: 8080
