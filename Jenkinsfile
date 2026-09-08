@@ -77,9 +77,10 @@ spec:
                 container('kaniko') {
                     sh '''
                         echo "--- Building Backend Image via Kaniko ---"
+                        cd backend
                         /kaniko/executor \
-                          --context=dir://${WORKSPACE}/backend \
-                          --dockerfile=${WORKSPACE}/backend/Dockerfile \
+                          --context=dir://. \
+                          --dockerfile=Dockerfile \
                           --destination=${BACKEND_IMG}:${TAG} \
                           --destination=${BACKEND_IMG}:latest
                     '''
@@ -92,9 +93,11 @@ spec:
                 container('kaniko') {
                     sh '''
                         echo "--- Building Frontend Image via Kaniko ---"
+                        cd frontend
                         /kaniko/executor \
-                          --context=dir://${WORKSPACE}/frontend \
-                          --dockerfile=${WORKSPACE}/frontend/Dockerfile \
+                          --context=dir://. \
+                          --dockerfile=Dockerfile \
+                          --build-arg=VITE_API_URL=https://api.localhost \
                           --destination=${FRONTEND_IMG}:${TAG} \
                           --destination=${FRONTEND_IMG}:latest
                     '''
