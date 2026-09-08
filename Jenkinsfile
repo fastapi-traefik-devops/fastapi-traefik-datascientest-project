@@ -78,8 +78,8 @@ spec:
                     sh '''
                         echo "--- Building Backend Image via Kaniko ---"
                         /kaniko/executor \
-                          --context=dir://backend \
-                          --dockerfile=backend/Dockerfile \
+                          --context=dir://${WORKSPACE}/backend \
+                          --dockerfile=${WORKSPACE}/backend/Dockerfile \
                           --destination=${BACKEND_IMG}:${TAG} \
                           --destination=${BACKEND_IMG}:latest
                     '''
@@ -93,8 +93,8 @@ spec:
                     sh '''
                         echo "--- Building Frontend Image via Kaniko ---"
                         /kaniko/executor \
-                          --context=dir://frontend \
-                          --dockerfile=frontend/Dockerfile \
+                          --context=dir://${WORKSPACE}/frontend \
+                          --dockerfile=${WORKSPACE}/frontend/Dockerfile \
                           --destination=${FRONTEND_IMG}:${TAG} \
                           --destination=${FRONTEND_IMG}:latest
                     '''
