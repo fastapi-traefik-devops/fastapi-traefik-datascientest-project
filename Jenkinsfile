@@ -10,7 +10,6 @@ metadata:
     component: jenkins-agent
 spec:
   containers:
-
   - name: python-tester
     image: ghcr.io/astral-sh/uv:python3.10-bookworm-slim
     command:
@@ -119,14 +118,14 @@ spec:
 
                         echo "--- Waiting for BuildKit ---"
                         for i in $(seq 1 60); do
-                            if buildctl --addr unix:///tmp/buildkitd.sock debug workers; then
+                            if buildctl --addr unix:///tmp/buildkitd.sock debug workers > /dev/null 2>&1; then
                                 break
-                            }
+                            fi
                             if ! kill -0 ${BUILDKIT_PID} 2>/dev/null; then
                                 echo "--- BuildKit daemon died ---"
                                 cat /tmp/buildkitd.log
                                 exit 1
-                            }
+                            fi
                             sleep 1
                         done
 
@@ -167,14 +166,14 @@ spec:
 
                         echo "--- Waiting for BuildKit ---"
                         for i in $(seq 1 60); do
-                            if buildctl --addr unix:///tmp/buildkitd.sock debug workers; then
+                            if buildctl --addr unix:///tmp/buildkitd.sock debug workers > /dev/null 2>&1; then
                                 break
-                            }
+                            fi
                             if ! kill -0 ${BUILDKIT_PID} 2>/dev/null; then
                                 echo "--- BuildKit daemon died ---"
                                 cat /tmp/buildkitd.log
                                 exit 1
-                            }
+                            fi
                             sleep 1
                         done
 
@@ -218,7 +217,7 @@ spec:
                     rm -rf "${WORKSPACE}/backend/.venv" || true
                 '''
             }
-            cleanWs()
+            deleteDir()
         }
     }
 }
