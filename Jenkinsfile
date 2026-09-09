@@ -212,6 +212,12 @@ spec:
 
     post {
         always {
+            container('node-tester') {
+                sh '''
+                    chmod -R +w "${WORKSPACE}/frontend/node_modules" || true
+                    rm -rf "${WORKSPACE}/frontend/node_modules" || true
+                '''
+            }
             container('python-tester') {
                 sh '''
                     rm -rf "${WORKSPACE}/backend/.venv" || true
