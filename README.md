@@ -302,19 +302,50 @@ applied to a cluster). Both `dev` and `prod` supply their `backend-secrets`,
 with the target namespace's public key, safe to commit, and only decryptable
 by the sealed-secrets controller running in that cluster.
 
-**One-time cluster setup**, on the VM's cluster:
+The steps below assume Ubuntu, run directly on the VM hosting the k3d
+cluster (`kubectl`/`helm` already configured for it, per the k3d setup).
+
+**0. Prerequisites** — skip any already installed:
+
+```bash
+# kubectl
+curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
+sudo install -m 755 kubectl /usr/local/bin/kubectl
+
+# helm
+curl -fsSL https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
+
+# kubeseal CLI (swap amd64 for arm64 on an ARM VM)
+KUBESEAL_VERSION=$(curl -s https://api.github.com/repos/bitnami-labs/sealed-secrets/releases/latest | grep tag_name | cut -d '"' -f4 | tr -d v)
+curl -OL "https://github.com/bitnami-labs/sealed-secrets/releases/download/v${KUBESEAL_VERSION}/kubeseal-${KUBESEAL_VERSION}-linux-amd64.tar.gz"
+tar -xvzf "kubeseal-${KUBESEAL_VERSION}-linux-amd64.tar.gz" kubeseal
+sudo install -m 755 kubeseal /usr/local/bin/kubeseal
+rm kubeseal "kubeseal-${KUBESEAL_VERSION}-linux-amd64.tar.gz"
+```
+
+**1. One-time cluster setup** — install the sealed-secrets controller:
 
 ```bash
 helm repo add sealed-secrets https://bitnami-labs.github.io/sealed-secrets
 helm repo update
 helm install sealed-secrets-controller sealed-secrets/sealed-secrets \
   --namespace kube-system
+kubectl rollout status deployment/sealed-secrets-controller -n kube-system
 ```
 
-Install the matching `kubeseal` CLI locally (e.g. `brew install kubeseal`).
+**2. Generate secret values.** For random ones (`SECRET_KEY`,
+`FIRST_SUPERUSER_PASSWORD`, `POSTGRES_PASSWORD`), use the same method as
+[the .env setup above](#generate-secret-keys):
 
-**Generating/rotating secrets for an overlay**, with `kubectl` pointed at the
-target cluster:
+```bash
+python -c "import secrets; print(secrets.token_urlsafe(32))"
+```
+
+Run it separately per key — don't reuse one value for two keys, and use
+different values for `dev` and `prod`. `SMTP_PASSWORD` comes from your email
+provider, not generated.
+
+**3. Seal them for an overlay**, from the repo root:
 
 ```bash
 SECRET_KEY=... \
@@ -327,14 +358,17 @@ POSTGRES_PASSWORD=... \
 This writes `k8s/overlays/<env>/sealed-secret-{backend,db,frontend}.yaml`.
 Review and commit them — the file contents are encrypted and safe in git.
 
-**Disaster recovery**: back up the controller's sealing key outside git, or a
-rebuilt controller can never decrypt existing SealedSecrets:
+**4. Disaster recovery** — back up the controller's sealing key outside git,
+or a rebuilt controller can never decrypt existing SealedSecrets:
 
 ```bash
 kubectl get secret -n kube-system \
   -l sealedsecrets.bitnami.com/sealed-secrets-key -o yaml \
   > sealing-key-backup.yaml
 ```
+
+Store `sealing-key-backup.yaml` somewhere outside the repo (it contains the
+private key, unlike the SealedSecret files).
 
 ### Private images
 
