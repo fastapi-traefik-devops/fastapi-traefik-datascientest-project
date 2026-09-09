@@ -10,19 +10,29 @@ metadata:
     component: jenkins-agent
 spec:
   containers:
+
   - name: python-tester
     image: ghcr.io/astral-sh/uv:python3.10-bookworm-slim
-    command: ['cat']
+    command:
+      - /bin/sh
+      - -c
+      - sleep infinity
     tty: true
 
   - name: node-tester
     image: node:20
-    command: ['cat']
+    command:
+      - /bin/sh
+      - -c
+      - sleep infinity
     tty: true
 
   - name: buildkit
     image: moby/buildkit:v0.24.0
-    command: ['cat']
+    command:
+      - /bin/sh
+      - -c
+      - sleep infinity
     tty: true
     securityContext:
       privileged: true
@@ -33,7 +43,10 @@ spec:
 
   - name: kubectl
     image: bitnami/kubectl:latest
-    command: ['cat']
+    command:
+      - /bin/sh
+      - -c
+      - sleep infinity
     tty: true
 
   volumes:
@@ -105,17 +118,22 @@ spec:
                         trap 'kill ${BUILDKIT_PID} 2>/dev/null || true' EXIT
 
                         echo "--- Waiting for BuildKit ---"
-                        until buildctl \
-                          --addr unix:///tmp/buildkitd.sock \
-                          debug workers > /dev/null 2>&1
-                        do
+                        for i in $(seq 1 60); do
+                            if buildctl --addr unix:///tmp/buildkitd.sock debug workers; then
+                                break
+                            }
+                            if ! kill -0 ${BUILDKIT_PID} 2>/dev/null; then
+                                echo "--- BuildKit daemon died ---"
+                                cat /tmp/buildkitd.log
+                                exit 1
+                            }
                             sleep 1
                         done
 
                         echo "--- BuildKit is ready ---"
                         test -f /root/.docker/config.json
 
-                        echo "--- Building Backend Image via BuildKit ---"
+                        echo "--- Building Backend ---"
                         buildctl \
                           --addr unix:///tmp/buildkitd.sock \
                           build \
@@ -148,17 +166,22 @@ spec:
                         trap 'kill ${BUILDKIT_PID} 2>/dev/null || true' EXIT
 
                         echo "--- Waiting for BuildKit ---"
-                        until buildctl \
-                          --addr unix:///tmp/buildkitd.sock \
-                          debug workers > /dev/null 2>&1
-                        do
+                        for i in $(seq 1 60); do
+                            if buildctl --addr unix:///tmp/buildkitd.sock debug workers; then
+                                break
+                            }
+                            if ! kill -0 ${BUILDKIT_PID} 2>/dev/null; then
+                                echo "--- BuildKit daemon died ---"
+                                cat /tmp/buildkitd.log
+                                exit 1
+                            }
                             sleep 1
                         done
 
                         echo "--- BuildKit is ready ---"
                         test -f /root/.docker/config.json
 
-                        echo "--- Building Frontend Image via BuildKit ---"
+                        echo "--- Building Frontend ---"
                         buildctl \
                           --addr unix:///tmp/buildkitd.sock \
                           build \
@@ -179,6 +202,7 @@ spec:
             steps {
                 container('kubectl') {
                     sh '''
+                        set -eu
                         echo "--- Dry-run validation of k8s/ manifests ---"
                         kubectl apply --dry-run=client -n dev -f k8s/
                     '''
@@ -191,7 +215,6 @@ spec:
         always {
             container('python-tester') {
                 sh '''
-                    echo "--- Cleaning UV virtual environment ---"
                     rm -rf "${WORKSPACE}/backend/.venv" || true
                 '''
             }
