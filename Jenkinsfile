@@ -10,6 +10,7 @@ metadata:
     component: jenkins-agent
 spec:
   containers:
+
   - name: python-tester
     image: ghcr.io/astral-sh/uv:python3.10-bookworm-slim
     command: ['cat']
@@ -50,6 +51,7 @@ spec:
     }
 
     stages {
+
         stage('Checkout') {
             steps {
                 checkout scm
@@ -61,9 +63,12 @@ spec:
                 container('python-tester') {
                     sh '''
                         set -eu
+
                         echo "--- Testing Backend with UV ---"
                         cd backend
+
                         uv sync --frozen
+
                         # uv run pytest
                     '''
                 }
@@ -75,8 +80,10 @@ spec:
                 container('node-tester') {
                     sh '''
                         set -eu
+
                         echo "--- Verifying Frontend Dependencies ---"
                         cd frontend
+
                         npm ci
                     '''
                 }
@@ -88,14 +95,39 @@ spec:
                 container('buildkit') {
                     sh '''
                         set -eu
+
                         echo "--- Starting BuildKit Daemon ---"
-                        buildkitd --debug &
-                        
-                        # Wait for socket initialization
-                        until buildctl debug workers; do sleep 1; done
+
+                        rm -f /tmp/buildkitd.sock
+
+                        buildkitd \
+                          --addr unix:///tmp/buildkitd.sock \
+                          > /tmp/buildkitd.log 2>&1 &
+
+                        BUILDKIT_PID=$!
+
+                        trap 'kill ${BUILDKIT_PID} 2>/dev/null || true' EXIT
+
+                        echo "--- Waiting for BuildKit ---"
+
+                        until buildctl \
+                          --addr unix:///tmp/buildkitd.sock \
+                          debug workers > /dev/null 2>&1
+                        do
+                            sleep 1
+                        done
+
+                        echo "--- BuildKit is ready ---"
+
+                        echo "--- Checking GHCR Docker credentials ---"
+
+                        test -f /root/.docker/config.json
 
                         echo "--- Building Backend Image via BuildKit ---"
-                        buildctl build \
+
+                        buildctl \
+                          --addr unix:///tmp/buildkitd.sock \
+                          build \
                           --frontend dockerfile.v0 \
                           --local context="${WORKSPACE}/backend" \
                           --local dockerfile="${WORKSPACE}/backend" \
@@ -113,8 +145,39 @@ spec:
                 container('buildkit') {
                     sh '''
                         set -eu
+
+                        echo "--- Starting BuildKit Daemon ---"
+
+                        rm -f /tmp/buildkitd.sock
+
+                        buildkitd \
+                          --addr unix:///tmp/buildkitd.sock \
+                          > /tmp/buildkitd.log 2>&1 &
+
+                        BUILDKIT_PID=$!
+
+                        trap 'kill ${BUILDKIT_PID} 2>/dev/null || true' EXIT
+
+                        echo "--- Waiting for BuildKit ---"
+
+                        until buildctl \
+                          --addr unix:///tmp/buildkitd.sock \
+                          debug workers > /dev/null 2>&1
+                        do
+                            sleep 1
+                        done
+
+                        echo "--- BuildKit is ready ---"
+
+                        echo "--- Checking GHCR Docker credentials ---"
+
+                        test -f /root/.docker/config.json
+
                         echo "--- Building Frontend Image via BuildKit ---"
-                        buildctl build \
+
+                        buildctl \
+                          --addr unix:///tmp/buildkitd.sock \
+                          build \
                           --frontend dockerfile.v0 \
                           --local context="${WORKSPACE}/frontend" \
                           --local dockerfile="${WORKSPACE}/frontend" \
@@ -140,7 +203,14 @@ spec:
 
     post {
         always {
-            deleteDir()
+            container('python-tester') {
+                sh '''
+                    echo "--- Cleaning UV virtual environment ---"
+                    rm -rf "${WORKSPACE}/backend/.venv" || true
+                '''
+            }
+
+            cleanWs()
         }
     }
 }
