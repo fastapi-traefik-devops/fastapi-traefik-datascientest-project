@@ -230,36 +230,43 @@ Kubernetes manifests live under [`k8s/`](./k8s) and are organized with
 [Kustomize](https://kustomize.io/):
 
 - **`k8s/base`** — the resources common to every environment: ConfigMaps,
-  Secrets, the database PVC, Deployments, Services, the prestart Job, and the
-  Ingress. Each file contains exactly one Kubernetes resource, named
-  `<kind>-<component>.yaml`.
+  the database PVC, Deployments, Services, the prestart Job, and the Ingress.
+  Each file contains exactly one Kubernetes resource, named
+  `<kind>-<component>.yaml`. Secrets are *not* part of the base — see
+  [Secrets](#secrets) below.
 - **`k8s/overlays/dev`** — applies the base resources into the `dev`
-  namespace, unmodified.
+  namespace, plus its own SealedSecrets, unmodified otherwise.
 - **`k8s/overlays/prod`** — applies the base resources into the `prod`
-  namespace, patched to run 2 replicas of the backend and frontend and to use
-  the production Ingress hostnames.
+  namespace, plus its own SealedSecrets, patched to run 2 replicas of the
+  backend and frontend and to use the production Ingress hostnames.
 
 ### File layout
 
 ```
 k8s/base/
-├── configmap-backend.yaml    # backend-config ConfigMap (shared with the prestart Job)
-├── configmap-db.yaml         # db-config ConfigMap
-├── configmap-frontend.yaml   # frontend-config ConfigMap
-├── secret-backend.yaml       # backend-secrets Secret (placeholder values)
-├── secret-db.yaml            # db-secrets Secret (placeholder values)
-├── secret-frontend.yaml      # frontend-secrets Secret
-├── pvc-db.yaml                # postgres-vol PersistentVolumeClaim
-├── deployment-backend.yaml   # backend Deployment
-├── service-backend.yaml      # backend Service
-├── deployment-db.yaml        # postgres-deployment Deployment
-├── service-db.yaml           # db Service
-├── deployment-frontend.yaml  # frontend Deployment
-├── service-frontend.yaml     # frontend Service
-├── deployment-adminer.yaml   # adminer Deployment
-├── service-adminer.yaml      # adminer Service
-├── job-prestart.yaml         # prestart Job (DB migrations, before backend/frontend serve traffic)
-└── ingress-app.yaml           # app-ingress Ingress (Traefik)
+├── configmap-backend.yaml         # backend-config ConfigMap (shared with the prestart Job)
+├── configmap-db.yaml              # db-config ConfigMap
+├── configmap-frontend.yaml        # frontend-config ConfigMap
+├── secret-backend.yaml.example    # keys backend-secrets must contain (template, not applied)
+├── secret-db.yaml.example         # keys db-secrets must contain (template, not applied)
+├── secret-frontend.yaml.example   # keys frontend-secrets must contain (template, not applied)
+├── pvc-db.yaml                     # postgres-vol PersistentVolumeClaim
+├── deployment-backend.yaml        # backend Deployment
+├── service-backend.yaml           # backend Service
+├── deployment-db.yaml             # postgres-deployment Deployment
+├── service-db.yaml                # db Service
+├── deployment-frontend.yaml       # frontend Deployment
+├── service-frontend.yaml          # frontend Service
+├── deployment-adminer.yaml        # adminer Deployment
+├── service-adminer.yaml           # adminer Service
+├── job-prestart.yaml              # prestart Job (DB migrations, before backend/frontend serve traffic)
+└── ingress-app.yaml                # app-ingress Ingress (Traefik)
+
+k8s/overlays/<dev|prod>/
+├── kustomization.yaml
+├── sealed-secret-backend.yaml   # generated — see Secrets below
+├── sealed-secret-db.yaml        # generated — see Secrets below
+└── sealed-secret-frontend.yaml  # generated — see Secrets below
 ```
 
 ### Render and apply
@@ -283,12 +290,48 @@ that may have a different default StorageClass, instead of hardcoding one.
 
 ### Secrets
 
-`secret-backend.yaml`, `secret-db.yaml`, and `secret-frontend.yaml` ship with
-`changethis`/empty placeholder values for local development only. Any real
-deployment must replace these with actual secret values through a mechanism
-outside of git (e.g. a secret generator, `kubectl create secret`, sealed
-secrets, or an external secrets operator) rather than committing real
-credentials to these files.
+No plaintext `Secret` manifest is applied in any environment — `k8s/base`
+has none, and `k8s/base/secret-*.yaml.example` are templates only (they list
+the required keys but are never referenced by a `kustomization.yaml` or
+applied to a cluster). Both `dev` and `prod` supply their `backend-secrets`,
+`db-secrets`, and `frontend-secrets` as
+[SealedSecrets](https://github.com/bitnami-labs/sealed-secrets): encrypted
+with the target namespace's public key, safe to commit, and only decryptable
+by the sealed-secrets controller running in that cluster.
+
+**One-time cluster setup**, on the VM's cluster:
+
+```bash
+helm repo add sealed-secrets https://bitnami-labs.github.io/sealed-secrets
+helm repo update
+helm install sealed-secrets-controller sealed-secrets/sealed-secrets \
+  --namespace kube-system
+```
+
+Install the matching `kubeseal` CLI locally (e.g. `brew install kubeseal`).
+
+**Generating/rotating secrets for an overlay**, with `kubectl` pointed at the
+target cluster:
+
+```bash
+SECRET_KEY=... \
+FIRST_SUPERUSER_PASSWORD=... \
+SMTP_PASSWORD=... \
+POSTGRES_PASSWORD=... \
+./scripts/seal-secrets.sh dev   # or: prod
+```
+
+This writes `k8s/overlays/<env>/sealed-secret-{backend,db,frontend}.yaml`.
+Review and commit them — the file contents are encrypted and safe in git.
+
+**Disaster recovery**: back up the controller's sealing key outside git, or a
+rebuilt controller can never decrypt existing SealedSecrets:
+
+```bash
+kubectl get secret -n kube-system \
+  -l sealedsecrets.bitnami.com/sealed-secrets-key -o yaml \
+  > sealing-key-backup.yaml
+```
 
 ### Private images
 

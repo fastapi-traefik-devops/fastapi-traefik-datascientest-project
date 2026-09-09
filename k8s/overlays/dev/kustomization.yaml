@@ -5,3 +5,6 @@ namespace: dev
 
 resources:
   - ../../base
+  - sealed-secret-backend.yaml
+  - sealed-secret-db.yaml
+  - sealed-secret-frontend.yaml
