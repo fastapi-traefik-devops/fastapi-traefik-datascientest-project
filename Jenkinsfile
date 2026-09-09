@@ -31,6 +31,11 @@ spec:
       mountPath: /root/.docker
       readOnly: true
 
+  - name: kubectl
+    image: bitnami/kubectl:latest
+    command: ['cat']
+    tty: true
+
   volumes:
   - name: docker-config
     secret:
@@ -172,10 +177,12 @@ spec:
 
         stage('Validate K8s Manifests') {
             steps {
-                sh '''
-                    echo "--- Dry-run validation of k8s/ manifests ---"
-                    kubectl apply --dry-run=client -n dev -f k8s/
-                '''
+                container('kubectl') {
+                    sh '''
+                        echo "--- Dry-run validation of k8s/ manifests ---"
+                        kubectl apply --dry-run=client -n dev -f k8s/
+                    '''
+                }
             }
         }
     }
