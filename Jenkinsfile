@@ -10,7 +10,6 @@ metadata:
     component: jenkins-agent
 spec:
   containers:
-
   - name: python-tester
     image: ghcr.io/astral-sh/uv:python3.10-bookworm-slim
     command: ['cat']
@@ -63,13 +62,9 @@ spec:
                 container('python-tester') {
                     sh '''
                         set -eu
-
                         echo "--- Testing Backend with UV ---"
                         cd backend
-
                         uv sync --frozen
-
-                        # uv run pytest
                     '''
                 }
             }
@@ -80,10 +75,8 @@ spec:
                 container('node-tester') {
                     sh '''
                         set -eu
-
                         echo "--- Verifying Frontend Dependencies ---"
                         cd frontend
-
                         npm ci
                     '''
                 }
@@ -97,7 +90,6 @@ spec:
                         set -eu
 
                         echo "--- Starting BuildKit Daemon ---"
-
                         rm -f /tmp/buildkitd.sock
 
                         buildkitd \
@@ -105,11 +97,9 @@ spec:
                           > /tmp/buildkitd.log 2>&1 &
 
                         BUILDKIT_PID=$!
-
                         trap 'kill ${BUILDKIT_PID} 2>/dev/null || true' EXIT
 
                         echo "--- Waiting for BuildKit ---"
-
                         until buildctl \
                           --addr unix:///tmp/buildkitd.sock \
                           debug workers > /dev/null 2>&1
@@ -118,13 +108,9 @@ spec:
                         done
 
                         echo "--- BuildKit is ready ---"
-
-                        echo "--- Checking GHCR Docker credentials ---"
-
                         test -f /root/.docker/config.json
 
                         echo "--- Building Backend Image via BuildKit ---"
-
                         buildctl \
                           --addr unix:///tmp/buildkitd.sock \
                           build \
@@ -147,7 +133,6 @@ spec:
                         set -eu
 
                         echo "--- Starting BuildKit Daemon ---"
-
                         rm -f /tmp/buildkitd.sock
 
                         buildkitd \
@@ -155,11 +140,9 @@ spec:
                           > /tmp/buildkitd.log 2>&1 &
 
                         BUILDKIT_PID=$!
-
                         trap 'kill ${BUILDKIT_PID} 2>/dev/null || true' EXIT
 
                         echo "--- Waiting for BuildKit ---"
-
                         until buildctl \
                           --addr unix:///tmp/buildkitd.sock \
                           debug workers > /dev/null 2>&1
@@ -168,13 +151,9 @@ spec:
                         done
 
                         echo "--- BuildKit is ready ---"
-
-                        echo "--- Checking GHCR Docker credentials ---"
-
                         test -f /root/.docker/config.json
 
                         echo "--- Building Frontend Image via BuildKit ---"
-
                         buildctl \
                           --addr unix:///tmp/buildkitd.sock \
                           build \
@@ -209,7 +188,6 @@ spec:
                     rm -rf "${WORKSPACE}/backend/.venv" || true
                 '''
             }
-
             cleanWs()
         }
     }
