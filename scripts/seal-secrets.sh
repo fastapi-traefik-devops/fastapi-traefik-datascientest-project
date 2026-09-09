@@ -66,7 +66,7 @@ seal backend-secrets \
 seal db-secrets \
   --from-literal=POSTGRES_PASSWORD="${POSTGRES_PASSWORD?Variable not set}"
 
-seal frontend-secrets
+######seal frontend-secrets
 
 echo "Done. Review the generated files, then commit them:"
 echo "  git add ${OVERLAY_DIR}/sealed-secret-*.yaml"
