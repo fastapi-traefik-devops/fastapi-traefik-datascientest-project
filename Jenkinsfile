@@ -41,7 +41,7 @@ spec:
       readOnly: true
 
   - name: kubectl
-    image: bitnami/kubectl:latest
+    image: alpine/k8s:1.30.0
     command:
       - /bin/sh
       - -c
@@ -202,8 +202,19 @@ spec:
                 container('kubectl') {
                     sh '''
                         set -eu
-                        echo "--- Dry-run validation of k8s/ manifests ---"
-                        kubectl apply --dry-run=client -n dev -f k8s/
+
+                        echo "--- Validating DEV Kubernetes manifests ---"
+
+                        echo "--- Building DEV Kustomize manifests ---"
+                        kubectl kustomize k8s/overlays/dev > /tmp/dev-manifests.yaml
+
+                        echo "--- Validating generated manifests ---"
+                        kubectl apply \
+                            --dry-run=client \
+                            -n dev \
+                            -f /tmp/dev-manifests.yaml
+
+                        echo "--- DEV manifests are valid ---"
                     '''
                 }
             }
@@ -214,13 +225,17 @@ spec:
         always {
             container('node-tester') {
                 sh '''
-                    chmod -R +w "${WORKSPACE}/frontend/node_modules" || true
-                    rm -rf "${WORKSPACE}/frontend/node_modules" || true
+                    if [ -d "${WORKSPACE}/frontend/node_modules" ]; then
+                        chmod -R +w "${WORKSPACE}/frontend/node_modules" || true
+                        rm -rf "${WORKSPACE}/frontend/node_modules" || true
+                    fi
                 '''
             }
             container('python-tester') {
                 sh '''
-                    rm -rf "${WORKSPACE}/backend/.venv" || true
+                    if [ -d "${WORKSPACE}/backend/.venv" ]; then
+                        rm -rf "${WORKSPACE}/backend/.venv" || true
+                    fi
                 '''
             }
             deleteDir()
