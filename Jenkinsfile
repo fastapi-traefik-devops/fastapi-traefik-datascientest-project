@@ -250,7 +250,7 @@ spec:
     post {
         success {
             script {
-                if (env.SKIP_BUILD != 'true' && !env.CHANGE_ID) {
+                if (env.SKIP_BUILD != 'true' && !env.CHANGE_ID && env.BRANCH_NAME == 'main') {
                     build job: '/trusted/publish', wait: false, quietPeriod: 10,
                         parameters: [string(name: 'MODE', value: 'publish'),
                                      string(name: 'CI_JOB', value: env.JOB_NAME),
