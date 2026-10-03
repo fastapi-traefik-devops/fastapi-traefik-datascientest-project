@@ -220,6 +220,10 @@ Backend docs: [backend/README.md](./backend/README.md).
 
 Frontend docs: [frontend/README.md](./frontend/README.md).
 
+## Jenkins CI
+
+Jenkins setup, local access, pipeline stages, and troubleshooting: [README-jenkins.md](./README-jenkins.md).
+
 ## Deployment
 
 Deployment docs: [deployment.md](./deployment.md).
