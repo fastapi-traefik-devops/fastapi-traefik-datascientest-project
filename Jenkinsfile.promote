@@ -80,7 +80,7 @@ spec:
         stage('Explicit promotion approval') {
             when { expression { params.MODE in ['dev', 'release'] } }
             steps {
-                input message: "Approve ${params.MODE}: ${params.MODE == 'release' ? params.RELEASE_TAG : env.IMAGE_SHA}. For a release, confirm this tag's digest pair ran successfully in stage (Argo health and smoke tests). Production still requires a reviewed Git PR.", submitter: 'release-managers'
+                input message: "Approve ${params.MODE}: ${params.MODE == 'release' ? params.RELEASE_TAG : env.IMAGE_SHA}. For a release, confirm this tag's digest pair ran successfully in stage (Argo health and smoke tests). Production still requires a reviewed Git PR.", submitter: 'admin'
             }
         }
         stage('Publish or promote under global lock') {
