@@ -1,4 +1,4 @@
-FROM python:3.10
+FROM python:3.10.16-bookworm
 
 ENV PYTHONUNBUFFERED=1
 
@@ -38,6 +38,6 @@ COPY ./app /app/app
 # Sync the project
 # Ref: https://docs.astral.sh/uv/guides/integration/docker/#intermediate-layers
 RUN --mount=type=cache,target=/root/.cache/uv \
-    uv sync
+    uv sync --frozen
 
 CMD ["fastapi", "run", "--workers", "4", "app/main.py"]

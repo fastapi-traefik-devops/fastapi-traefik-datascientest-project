@@ -1,34 +1,8 @@
+# Legacy controller access to the application namespace is retired.
+# Operator must apply/revoke the existing live role during migration.
 apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
 metadata:
   name: jenkins-controller-agent-manager
   namespace: dev
-rules:
-  - apiGroups: [""]
-    resources:
-      - pods
-      - pods/log
-      - pods/exec
-    verbs:
-      - get
-      - list
-      - watch
-      - create
-      - delete
-      - patch
-      - update
-
----
-apiVersion: rbac.authorization.k8s.io/v1
-kind: RoleBinding
-metadata:
-  name: jenkins-controller-agent-manager
-  namespace: dev
-subjects:
-  - kind: ServiceAccount
-    name: jenkins
-    namespace: jenkins
-roleRef:
-  kind: Role
-  name: jenkins-controller-agent-manager
-  apiGroup: rbac.authorization.k8s.io
+rules: []

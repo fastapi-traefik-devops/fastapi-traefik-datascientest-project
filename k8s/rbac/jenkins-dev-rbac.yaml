@@ -1,77 +1,8 @@
+# Legacy role intentionally grants no permissions. See README-jenkins.md.
+# Existing cluster bindings must be revoked by an administrator during migration.
 apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
 metadata:
   name: jenkins-agent
   namespace: dev
-rules:
-  - apiGroups: [""]
-    resources:
-      - pods
-      - pods/log
-      - pods/exec
-      - configmaps
-      - secrets
-      - services
-      - persistentvolumeclaims
-    verbs:
-      - get
-      - list
-      - watch
-      - create
-      - delete
-      - patch
-      - update
-
-  - apiGroups: ["apps"]
-    resources:
-      - deployments
-      - replicasets
-      - statefulsets
-    verbs:
-      - get
-      - list
-      - watch
-      - create
-      - delete
-      - patch
-      - update
-
-  - apiGroups: ["batch"]
-    resources:
-      - jobs
-      - cronjobs
-    verbs:
-      - get
-      - list
-      - watch
-      - create
-      - delete
-      - patch
-      - update
-
-  - apiGroups: ["networking.k8s.io"]
-    resources:
-      - ingresses
-    verbs:
-      - get
-      - list
-      - watch
-      - create
-      - delete
-      - patch
-      - update
-
----
-apiVersion: rbac.authorization.k8s.io/v1
-kind: RoleBinding
-metadata:
-  name: jenkins-agent
-  namespace: dev
-subjects:
-  - kind: ServiceAccount
-    name: default
-    namespace: dev
-roleRef:
-  kind: Role
-  name: jenkins-agent
-  apiGroup: rbac.authorization.k8s.io
+rules: []

@@ -1,0 +1,109 @@
+// TRUSTED standalone Pipeline: load this file ONLY from protected main.
+// Never configure this job as a branch/PR-controlled Pipeline.
+pipeline {
+    agent {
+        kubernetes {
+            cloud 'trusted-kubernetes'
+            namespace 'jenkins-publish'
+            yaml '''
+apiVersion: v1
+kind: Pod
+spec:
+  automountServiceAccountToken: false
+  containers:
+  - name: publisher
+    image: python:3.10.16-bookworm
+    command: [sh, -c, sleep infinity]
+    resources:
+      requests: {cpu: 250m, memory: 256Mi}
+      limits: {cpu: '1', memory: 1Gi}
+'''
+        }
+    }
+    options {
+        skipDefaultCheckout(true)
+        disableConcurrentBuilds()
+        timeout(time: 60, unit: 'MINUTES')
+        timestamps()
+        buildDiscarder(logRotator(numToKeepStr: '100'))
+    }
+    parameters {
+        choice(name: 'MODE', choices: ['publish', 'dev', 'release'], description: 'publish: archive to GHCR and main to stage; dev: approved selected CI build; release: existing stage artifact only')
+        string(name: 'CI_JOB', defaultValue: 'app-ci/main', description: 'Exact branch job under app-ci; PR jobs are rejected')
+        string(name: 'CI_BUILD', defaultValue: '', description: 'Exact successful CI build number (unused for release)')
+        string(name: 'RELEASE_TAG', defaultValue: '', description: 'Existing vX.Y.Z tag, for release mode only')
+    }
+    environment {
+        PATH = "/tmp/ci-bin:${env.PATH}"
+        REGISTRY_NAMESPACE = 'ghcr.io/fastapi-traefik-devops'
+    }
+    stages {
+        stage('Trusted implementation') {
+            steps {
+                checkout scm
+                container('publisher') { sh 'sh ci/tools.sh' }
+                script {
+                    if (!(params.MODE in ['publish', 'dev', 'release'])) { error('Invalid mode') }
+                    if (params.MODE == 'release') {
+                        if (!(params.RELEASE_TAG ==~ /v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)/)) { error('Expected vX.Y.Z') }
+                    } else {
+                        if (!(params.CI_JOB ==~ /app-ci\/[A-Za-z0-9_.%\-]+/) || params.CI_JOB.startsWith('app-ci/PR-')) { error('Only repository branch jobs under app-ci are allowed') }
+                        if (!(params.CI_BUILD ==~ /[1-9][0-9]*/)) { error('Exact CI build number required') }
+                    }
+                }
+            }
+        }
+        stage('Verify successful CI and copy artifacts') {
+            when { expression { params.MODE != 'release' } }
+            steps {
+                script {
+                    def jobPath = params.CI_JOB.split('/').collect { 'job/' + java.net.URLEncoder.encode(it, 'UTF-8') }.join('/')
+                    def data
+                    timeout(time: 10, unit: 'MINUTES') {
+                        waitUntil(initialRecurrencePeriod: 5000) {
+                            def response = httpRequest authentication: 'ci-read', quiet: true,
+                                url: "${env.JENKINS_URL}${jobPath}/${params.CI_BUILD}/api/json?tree=result,building,actions[lastBuiltRevision[SHA1],remoteUrls]"
+                            data = readJSON text: response.content, returnPojo: true
+                            return !data.building
+                        }
+                    }
+                    if (data.result != 'SUCCESS') { error('Source CI build must be SUCCESS') }
+                    def revisions = data.actions.findAll { it.lastBuiltRevision }.collect { it.lastBuiltRevision.SHA1 }.unique()
+                    if (revisions.size() != 1 || !(revisions[0] ==~ /[0-9a-f]{40}/)) { error('Ambiguous or missing Git plugin revision') }
+                    env.IMAGE_SHA = revisions[0]
+                    copyArtifacts projectName: params.CI_JOB, selector: specific(params.CI_BUILD),
+                        filter: '*-ci.tar,source-sha.txt', target: 'artifacts', fingerprintArtifacts: true
+                    if (readFile('artifacts/source-sha.txt').trim() != env.IMAGE_SHA) { error('Artifact SHA disagrees with Jenkins SCM revision') }
+                }
+            }
+        }
+        stage('Explicit promotion approval') {
+            when { expression { params.MODE in ['dev', 'release'] } }
+            steps {
+                input message: "Approve ${params.MODE}: ${params.MODE == 'release' ? params.RELEASE_TAG : env.IMAGE_SHA}. For a release, confirm this tag's digest pair ran successfully in stage (Argo health and smoke tests). Production still requires a reviewed Git PR.", submitter: 'release-managers'
+            }
+        }
+        stage('Publish or promote under global lock') {
+            steps {
+                lock(resource: 'fastapi-ghcr-gitops') {
+                    container('publisher') {
+                        withCredentials([
+                            usernamePassword(credentialsId: 'ghcr-write', usernameVariable: 'GHCR_USER', passwordVariable: 'GHCR_TOKEN'),
+                            usernamePassword(credentialsId: 'gitops-write', usernameVariable: 'GIT_USER', passwordVariable: 'GIT_TOKEN')
+                        ]) {
+                            withEnv(["PROMOTION_MODE=${params.MODE}", "SOURCE_JOB=${params.CI_JOB}", "RELEASE_TAG=${params.RELEASE_TAG}"]) {
+                                sh 'sh ci/publish.sh'
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+    post {
+        always {
+            container('publisher') { sh 'find . -mindepth 1 -maxdepth 1 -exec rm -rf -- {} +' }
+            deleteDir()
+        }
+    }
+}

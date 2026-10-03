@@ -1,7 +1,7 @@
 pipeline {
     agent {
         kubernetes {
-            namespace 'dev'
+            namespace 'jenkins-ci'
             yaml '''
 apiVersion: v1
 kind: Pod
@@ -10,13 +10,6 @@ metadata:
     component: jenkins-agent
 spec:
   automountServiceAccountToken: false
-  volumes:
-  - name: ghcr-auth
-    secret:
-      secretName: ghcr-creds
-      items:
-      - key: .dockerconfigjson
-        path: config.json
   containers:
   - name: python-tester
     image: ghcr.io/astral-sh/uv:0.5.11-python3.10-bookworm-slim
@@ -34,7 +27,7 @@ spec:
         memory: 1Gi
 
   - name: node-tester
-    image: node:20
+    image: node:20.18.1
     command:
       - /bin/sh
       - -c
@@ -50,13 +43,6 @@ spec:
 
   - name: buildkit
     image: moby/buildkit:v0.24.0
-    env:
-    - name: DOCKER_CONFIG
-      value: /run/ghcr-auth
-    volumeMounts:
-    - name: ghcr-auth
-      mountPath: /run/ghcr-auth
-      readOnly: true
     command:
       - /bin/sh
       - -c
@@ -74,7 +60,7 @@ spec:
 
   # Disposable database: loopback-only, no Service or persistent volume.
   - name: postgres-test
-    image: postgres:16
+    image: postgres:16.6
     args: ["-c", "listen_addresses=127.0.0.1"]
     env:
     - name: POSTGRES_DB
@@ -98,13 +84,7 @@ spec:
         timeout(time: 45, unit: 'MINUTES')
         disableConcurrentBuilds()
         timestamps()
-    }
-
-    parameters {
-        booleanParam(name: 'PUSH_IMAGES', defaultValue: false,
-            description: 'Publish both images to GHCR after checks pass (main branch only).')
-        string(name: 'PUBLISH_API_URL', defaultValue: '',
-            description: 'Browser-accessible API URL embedded in published frontend images; required when PUSH_IMAGES is enabled.')
+        buildDiscarder(logRotator(numToKeepStr: '30', artifactNumToKeepStr: '10'))
     }
 
     environment {
@@ -128,7 +108,7 @@ spec:
         SMTP_SSL = 'false'
         BACKEND_CORS_ORIGINS = 'http://localhost:5173'
         FRONTEND_HOST = 'http://localhost:5173'
-        VITE_API_URL = "${params.PUSH_IMAGES ? params.PUBLISH_API_URL.trim() : 'http://localhost:8000'}"
+        VITE_API_URL = ''
     }
 
     stages {
@@ -137,23 +117,23 @@ spec:
             steps {
                 script {
                     def revision = checkout scm
-                    env.IMAGE_TAG = revision.GIT_COMMIT
-                    env.CHECKED_OUT_BRANCH = revision.GIT_BRANCH
-                    env.PUBLISH_IMAGES = params.PUSH_IMAGES ? 'true' : 'false'
-                    if (params.PUSH_IMAGES) {
-                        if (env.CHANGE_ID || !(env.CHECKED_OUT_BRANCH in ['main', 'origin/main']) ||
-                            (env.BRANCH_NAME && env.BRANCH_NAME != 'main')) {
-                            error('Image publishing is allowed only from main, never from pull requests.')
-                        }
-                        if (!params.PUBLISH_API_URL?.trim()) {
-                            error('Set PUBLISH_API_URL before publishing frontend images.')
-                        }
+                    env.IMAGE_SHA = revision.GIT_COMMIT
+                    if (!(env.IMAGE_SHA ==~ /[0-9a-f]{40}/)) { error('Expected full Git SHA') }
+                    if (!env.BRANCH_NAME) { error('Configure a GitHub multibranch job') }
+                    env.SKIP_BUILD = env.TAG_NAME ? 'true' : 'false'
+                    // GitOps-only changes validate, but never create application artifacts.
+                    def changes = sh(returnStdout: true, script: 'git diff-tree --root --first-parent -m --no-commit-id --name-only -r HEAD').trim().readLines()
+                    if (changes && changes.every { it.startsWith('deploy/') || it.startsWith('argocd/') || it.endsWith('.md') }) {
+                        env.SKIP_BUILD = 'true'
                     }
+                    writeFile file: 'source-sha.txt', text: env.IMAGE_SHA + '\n'
+
                 }
             }
         }
 
         stage('Backend Checks and Tests') {
+            when { expression { env.SKIP_BUILD != 'true' } }
             steps {
                 container('python-tester') {
                     sh '''
@@ -189,6 +169,7 @@ spec:
         }
 
         stage('Frontend Check') {
+            when { expression { env.SKIP_BUILD != 'true' } }
             steps {
                 container('node-tester') {
                     sh '''
@@ -202,7 +183,16 @@ spec:
             }
         }
 
-        stage('Build and Optionally Push Images') {
+        stage('Validate all overlays') {
+            steps {
+                container('node-tester') {
+                    sh 'sh ci/tools.sh && PATH=/tmp/ci-bin:$PATH sh ci/validate.sh && PATH=/tmp/ci-bin:$PATH python3 -m unittest discover -s ci -p "test_*.py"'
+                }
+            }
+        }
+
+        stage('Build image archives') {
+            when { expression { env.SKIP_BUILD != 'true' } }
             steps {
                 container('buildkit') {
                     sh '''
@@ -234,7 +224,7 @@ spec:
                           --frontend dockerfile.v0 \
                           --local context="${WORKSPACE}/backend" \
                           --local dockerfile="${WORKSPACE}/backend" \
-                          --output type=oci,dest=/tmp/backend-ci.tar \
+                          --output type=docker,dest=${WORKSPACE}/backend-ci.tar \
                           --progress=plain
 
                         buildctl --addr unix:///tmp/buildkitd.sock build \
@@ -242,36 +232,37 @@ spec:
                           --local context="${WORKSPACE}/frontend" \
                           --local dockerfile="${WORKSPACE}/frontend" \
                           --opt "build-arg:VITE_API_URL=${VITE_API_URL}" \
-                          --output type=oci,dest=/tmp/frontend-ci.tar \
+                          --output type=docker,dest=${WORKSPACE}/frontend-ci.tar \
                           --progress=plain
 
-                        if [ "${PUBLISH_IMAGES}" = true ]; then
-                            # Reuse the completed builds from this daemon's local cache.
-                            # Commit tags identify the source; do not overwrite latest.
-                            buildctl --addr unix:///tmp/buildkitd.sock build \
-                              --frontend dockerfile.v0 \
-                              --local context="${WORKSPACE}/backend" \
-                              --local dockerfile="${WORKSPACE}/backend" \
-                              --output "type=image,name=${REGISTRY_NAMESPACE}/fastapi-backend:${IMAGE_TAG},push=true" \
-                              --progress=plain
-
-                            buildctl --addr unix:///tmp/buildkitd.sock build \
-                              --frontend dockerfile.v0 \
-                              --local context="${WORKSPACE}/frontend" \
-                              --local dockerfile="${WORKSPACE}/frontend" \
-                              --opt "build-arg:VITE_API_URL=${VITE_API_URL}" \
-                              --output "type=image,name=${REGISTRY_NAMESPACE}/fastapi-frontend:${IMAGE_TAG},push=true" \
-                              --progress=plain
-                        else
-                            echo "Image publishing disabled; both images built locally."
-                        fi
                     '''
                 }
             }
         }
+        stage('Archive checked images') {
+            when { expression { env.SKIP_BUILD != 'true' && !env.CHANGE_ID } }
+            steps {
+                archiveArtifacts artifacts: '*-ci.tar,source-sha.txt', fingerprint: true
+            }
+        }
+
     }
 
     post {
+        success {
+            script {
+                if (env.SKIP_BUILD != 'true' && !env.CHANGE_ID) {
+                    build job: '/trusted/publish', wait: false, quietPeriod: 10,
+                        parameters: [string(name: 'MODE', value: 'publish'),
+                                     string(name: 'CI_JOB', value: env.JOB_NAME),
+                                     string(name: 'CI_BUILD', value: env.BUILD_NUMBER)]
+                } else if (env.TAG_NAME) {
+                    build job: '/trusted/publish', wait: false, quietPeriod: 10,
+                        parameters: [string(name: 'MODE', value: 'release'),
+                                     string(name: 'RELEASE_TAG', value: env.TAG_NAME)]
+                }
+            }
+        }
         always {
             // Tool containers create root-owned files; clean them in the same
             // container before the inbound agent removes the workspace.

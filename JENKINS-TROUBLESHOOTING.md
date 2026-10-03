@@ -1,3 +1,6 @@
+> Historical investigation of the previous setup. Current namespaces, permissions
+> and pipeline behavior are documented in [README-jenkins.md](README-jenkins.md).
+
 # Jenkins on Kubernetes: troubleshooting cheat sheet
 
 Investigated on 2026-10-01. Diagnose in order: context → controller → permissions → agent → build → storage.
