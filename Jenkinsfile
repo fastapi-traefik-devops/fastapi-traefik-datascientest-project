@@ -230,7 +230,7 @@ spec:
                           --frontend dockerfile.v0 \
                           --local context="${WORKSPACE}/frontend" \
                           --local dockerfile="${WORKSPACE}/frontend" \
-                          --opt "build-arg:VITE_API_URL=${VITE_API_URL}" \
+                          --opt "build-arg:VITE_API_URL=${VITE_API_URL:-}" \
                           --output type=docker,dest=${WORKSPACE}/frontend-ci.tar \
                           --progress=plain
 
