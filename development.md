@@ -1,3 +1,7 @@
+> Production deployment now uses [Jenkins and Argo CD](README-jenkins.md).
+> The Compose/subdomain examples below describe local or standalone development;
+> GitOps environments use one origin with `/api` ingress routing.
+
 # FastAPI Project - Development
 
 ## Docker Compose

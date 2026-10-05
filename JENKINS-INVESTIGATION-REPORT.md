@@ -1,3 +1,6 @@
+> Historical investigation of the previous setup. Current namespaces, permissions
+> and pipeline behavior are documented in [README-jenkins.md](README-jenkins.md).
+
 # How I investigated the Jenkins failure
 
 Date: 2026-10-01. Investigation performed with AI assistance using read-only checks and a server-side dry-run. No deployment, cleanup, restart, or pipeline modification was performed.

@@ -22,7 +22,7 @@
 - ✅ Tests with [Pytest](https://pytest.org).
 - 📞 [Traefik](https://traefik.io) as a reverse proxy / load balancer.
 - 🚢 Deployment instructions using Docker Compose, including how to set up a frontend Traefik proxy to handle automatic HTTPS certificates.
-- 🏭 CI (continuous integration) and CD (continuous deployment) based on GitHub Actions.
+- 🏭 CI/CD using GitHub Flow, Jenkins, GHCR and Argo CD; see [the operating guide](README-jenkins.md).
 
 ### Dashboard Login
 
@@ -228,92 +228,13 @@ Jenkins setup, local access, pipeline stages, and troubleshooting: [README-jenki
 
 Deployment docs: [deployment.md](./deployment.md).
 
-## Kubernetes Manifests
+## Kubernetes GitOps
 
-Kubernetes manifests live under [`k8s/`](./k8s) and are organized with
-[Kustomize](https://kustomize.io/):
+Active manifests live in `deploy/base` and `deploy/overlays/{dev,stage,prod}`.
+Argo CD owns application deployment; Jenkins builds images and modifies Git.
+See [Jenkins setup and release procedures](README-jenkins.md) and
+[Argo bootstrap and rollback](deployment.md).
 
-- **`k8s/base`** — the resources common to every environment: ConfigMaps,
-  Secrets, the database PVC, Deployments, Services, the prestart Job, and the
-  Ingress. Each file contains exactly one Kubernetes resource, named
-  `<kind>-<component>.yaml`.
-- **`k8s/overlays/dev`** — applies the base resources into the `dev`
-  namespace, unmodified.
-- **`k8s/overlays/prod`** — applies the base resources into the `prod`
-  namespace, patched to run 2 replicas of the backend and frontend and to use
-  the production Ingress hostnames.
-
-### File layout
-
-```
-k8s/base/
-├── configmap-backend.yaml    # backend-config ConfigMap (shared with the prestart Job)
-├── configmap-db.yaml         # db-config ConfigMap
-├── configmap-frontend.yaml   # frontend-config ConfigMap
-├── secret-backend.yaml       # backend-secrets Secret (placeholder values)
-├── secret-db.yaml            # db-secrets Secret (placeholder values)
-├── secret-frontend.yaml      # frontend-secrets Secret
-├── pvc-db.yaml                # postgres-vol PersistentVolumeClaim
-├── deployment-backend.yaml   # backend Deployment
-├── service-backend.yaml      # backend Service
-├── deployment-db.yaml        # postgres-deployment Deployment
-├── service-db.yaml           # db Service
-├── deployment-frontend.yaml  # frontend Deployment
-├── service-frontend.yaml     # frontend Service
-├── deployment-adminer.yaml   # adminer Deployment
-├── service-adminer.yaml      # adminer Service
-├── job-prestart.yaml         # prestart Job (DB migrations, before backend/frontend serve traffic)
-└── ingress-app.yaml           # app-ingress Ingress (Traefik)
-```
-
-### Render and apply
-
-```bash
-# Dev
-kubectl kustomize k8s/overlays/dev
-kubectl apply -k k8s/overlays/dev
-
-# Prod
-kubectl kustomize k8s/overlays/prod
-kubectl apply -k k8s/overlays/prod
-```
-
-### Storage
-
-`pvc-db.yaml` intentionally omits `storageClassName`, so the PVC binds to
-whatever StorageClass the cluster marks as default — for example Minikube's
-default `standard` class. This keeps the manifest portable across clusters
-that may have a different default StorageClass, instead of hardcoding one.
-
-### Secrets
-
-`secret-backend.yaml`, `secret-db.yaml`, and `secret-frontend.yaml` ship with
-`changethis`/empty placeholder values for local development only. Any real
-deployment must replace these with actual secret values through a mechanism
-outside of git (e.g. a secret generator, `kubectl create secret`, sealed
-secrets, or an external secrets operator) rather than committing real
-credentials to these files.
-
-### Private images
-
-`deployment-backend.yaml`, `deployment-frontend.yaml`, and `job-prestart.yaml`
-reference an `imagePullSecrets` entry named `ghcr-pull-secret`. This secret is
-**not** defined in these manifests — it must be created in the target
-namespace beforehand (e.g. `kubectl create secret docker-registry
-ghcr-pull-secret ...`) whenever the backend/frontend images are published to a
-private GHCR repository. This is only needed for private images; if the
-images are public, no image-pull secret is required.
-
-## Development
-
-General development docs: [development.md](./development.md).
-
-This includes using Docker Compose, custom local domains, `.env` configurations, etc.
-
-## Release Notes
-
-Check the file [release-notes.md](./release-notes.md).
-
-## License
-
-The Full Stack FastAPI Template is licensed under the terms of the MIT license.
+`k8s/` is retained for historical/local reference. Do not apply it alongside the
+active GitOps applications. Its old sealed secrets belong to their original
+namespace/cluster. Production uses externally provisioned secrets.

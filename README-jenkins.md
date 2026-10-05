@@ -1,190 +1,265 @@
-# Jenkins CI
+# GitHub Flow + Jenkins + GHCR + Argo CD
 
-This repository uses the root [Jenkinsfile](Jenkinsfile) to check the backend,
-compile the frontend, and build both container images. Jenkins creates a temporary
-Kubernetes agent Pod in the `dev` namespace for each build.
+`main` is the only long-lived branch. Use short-lived feature branches and reviewed
+pull requests. Jenkins checks/builds artifacts and writes Git; Argo CD reconciles
+application resources. Jenkins has no application deployment commands or cluster
+credentials. Existing Compose files remain useful for local development.
 
-The pipeline is CI-only: it does not push images, apply Kubernetes manifests, or
-deploy the application. It does not require registry credentials or run kubectl.
+```mermaid
+flowchart TD
+  F[Feature branch or PR] --> CI[Jenkins app-ci multibranch: checks and image archives]
+  CI -->|successful repository branch only| P[Trusted Jenkins publisher]
+  P --> SHA[GHCR sha-full-commit-SHA images]
+  M[main] --> CI
+  P -->|main only| S[stage overlay Git commit]
+  SHA -->|selected successful build + approval| D[dev overlay Git commit]
+  T[vX.Y.Z tag] --> R[Trusted release: approval, main ancestry, existing SHA digests, stage history]
+  R --> V[Retag existing images; never build]
+  V --> PR[prod review branch and human PR]
+  PR -->|approved merge| G[main desired state]
+  S --> G
+  D --> G
+  G --> A[Argo CD]
+  A --> E[app-dev / app-stage / app-prod]
+```
 
-## Prerequisites
+## Layout and trust boundary
 
-- A running Jenkins controller and Kubernetes cluster.
-- Jenkins plugins: Pipeline (including Declarative Pipeline), Kubernetes, Git,
-  JUnit, and Timestamper, with their dependencies.
-- An existing `dev` namespace with enough capacity for the agent Pod.
-- Controller credentials with permission to manage agent Pods, read their logs,
-  and execute commands in their containers in `dev`.
-- Network access for Git checkout, container pulls, Python packages, and npm.
-- Cluster admission policy that permits the privileged BuildKit container.
+| Path | Purpose |
+| --- | --- |
+| `Jenkinsfile` | Credential-free multibranch CI; backend mypy/Ruff/tests, JUnit/coverage, frontend TypeScript/Vite, all overlay validation/promotion safety tests, BuildKit image archives |
+| `Jenkinsfile.promote` | Separate trusted standalone job loaded ONLY from protected main; successful-build verification, publishing, Git-only promotions |
+| `ci/tools.sh` | Version/checksum-pinned amd64 Kustomize 5.6.0, kubeconform 0.6.7, crane 0.20.3 |
+| `ci/validate.sh` | Render and strictly schema-check all overlays against Kubernetes 1.31 |
+| `ci/publish.sh`, `ci/promote.py` | Registry operations and Git writer; no execution of selected source revision |
+| `ci/jenkins-controller-rbac.yaml` | Bootstrap-only agent Pod management in dedicated CI namespaces |
+| `deploy/base` | Shared Deployments, Services, ConfigMaps, migration Job, PVC and Ingress; no plaintext Secrets |
+| `deploy/overlays/dev` | Selected development SHA/digests and dev configuration |
+| `deploy/overlays/stage` | Latest eligible successful main SHA/digests and stage configuration |
+| `deploy/overlays/prod` | Reviewed release SHA/digests and production configuration |
+| `argocd/project.yaml` | Restricts repository, three namespaces and namespaced resource kinds |
+| `argocd/applicationset.yaml` | Three applications tracking main, automatic prune/selfHeal |
 
-The four containers declared in the Jenkinsfile request a total of 1 CPU and
-1.25 GiB of memory. Allow additional capacity for the plugin-provided Jenkins
-inbound agent and temporary build files.
+The two-job split is intentional: a `when` condition in a branch-controlled
+Jenkinsfile is **not** a credentials security boundary. Branch authors can edit
+that file. Only the `trusted` folder holds write credentials. The publisher copies
+image archives as data and never runs branch scripts or Dockerfiles. It verifies
+that the exact numbered CI build finished SUCCESS and that artifact SHA matches
+the Jenkins Git plugin revision. PR jobs are rejected and do not archive images.
+Do not allow users to create arbitrary jobs under `app-ci` or change the trusted job.
 
-Docker does not need to be installed on the controller. Builds use BuildKit
-inside the agent Pod.
+## Jenkins setup (required before enabling webhooks)
 
-## Open Jenkins locally
+1. Install Pipeline/Declarative, Git, GitHub Branch Source, Kubernetes,
+   Credentials Binding, JUnit, Timestamper, Pipeline Utility Steps, HTTP Request,
+   Copy Artifact, Pipeline Build Step, Basic Branch Build Strategies (for tags),
+   Lockable Resources, and an authorization
+   plugin (Role Strategy or equivalent). Use supported plugin versions and test
+   the Declarative linter on your controller. Coverage XML is archived; a coverage
+   visualization plugin is optional. Configure GitHub status reporting through
+   Branch Source; require the actual emitted Jenkins context in GitHub rules.
+2. Create namespaces `jenkins-ci` and `jenkins-publish`. Configure cloud
+   `kubernetes` for CI and `trusted-kubernetes` for the publisher. Use
+   `ci/jenkins-controller-rbac.yaml` as an operator-reviewed starting point.
+   Agent service accounts need **no RBAC** and do not mount API tokens. Revoke
+   pre-existing Jenkins workload permissions in `dev` (including the historical
+   `jenkins-agent` RoleBinding); changing a file does not revoke live RBAC.
+   `k8s/rbac/jenkins-dev-rbac.yaml` and the old controller-dev RBAC file now define empty legacy Roles. Remove any other broad pre-existing controller grants too.
+3. Restrict the trusted cloud to the `trusted` folder using Kubernetes plugin
+   cloud restrictions. Enforce admission restrictions on CI Pod creation:
+   fixed CI namespace/node pool, no hostPath/host networking, no Secret mounts,
+   no service-account token mounts, and no selection of privileged service
+   accounts. Do not place application secrets in CI namespaces. Folder-scoped
+   credentials alone do not secure a controller that can be tricked into creating
+   arbitrary Pods in the publisher namespace. Test these denials explicitly.
+4. BuildKit remains privileged. Run CI on dedicated disposable worker nodes
+   with no production workloads or credentials; privileged build containers can
+   compromise their node. For hostile public PRs use a separate isolated build
+   cluster/controller or do not enable fork PR execution until this boundary
+   is in place. The publisher is unprivileged and must run on separate trusted
+   nodes. Configure node scheduling through restricted cloud Pod templates and
+   admission policy. Network-isolate workers from application databases and
+   controller administration endpoints while allowing required agent traffic.
+5. Configure agent URL, e.g. `http://jenkins.jenkins.svc.cluster.local:8080`, and
+   WebSocket or port 50000 connectivity. Set the controller's `JENKINS_URL` to an
+   address reachable by its HTTP Request plugin. Both clouds require amd64 nodes.
+   Python and Node containers have limits; BuildKit is limited to 2 CPU/2 GiB;
+   isolated PostgreSQL 16 is loopback-only, without a Service, host port or PVC.
+   Allow additional resources for the inbound agent and large image archives.
+6. Create multibranch job **`app-ci`** using GitHub Branch Source and script path
+   `Jenkinsfile`. Discover repository branches, PRs (untrusted fork strategy),
+   and tags. Enable the tag build strategy; tag discovery alone may not build
+   tags. Use full checkout history, no shallow clone. Configure the GitHub webhook
+   for push/PR/tag events and periodic indexing as a fallback. Checkout/scan
+   credentials must be read-only; never global registry/Git write credentials.
+7. Create folder **`trusted`** and standalone Pipeline **`trusted/publish`**,
+   Pipeline from SCM, branch `*/main`, script `Jenkinsfile.promote`, full clone.
+   Restrict Configure/Replay/credential administration to CI administrators.
+   It must never load its Jenkinsfile or helper scripts from a parameter, PR or
+   release tag. Restrict Build permissions to the CI execution identity and
+   operators. The CI job schedules this job asynchronously after success; the
+   publisher waits for CI completion and fails unless its result is SUCCESS.
+   Monitor the publisher job separately: a successful CI status does not prove
+   publication or promotion succeeded. Retry with the original job/build number.
+8. Give the publisher Copy Artifact read access to `app-ci/*` through plugin
+   permissions and Jenkins Job/Read + Job/Discover + artifact access. Configure
+   authorization so build parameters cannot select jobs outside `app-ci`.
+   PR names must retain the GitHub Branch Source `PR-<number>` convention.
+9. Create the credentials below **inside `trusted` only**. Configure Jenkins group
+   `release-managers` for the input gate (or replace the submitter with your exact
+   approved user/group IDs). Configure lock resource `fastapi-ghcr-gitops`; all
+   publishers must share this resource and controller. No separate script may
+   write these image tags or promote these overlays concurrently.
 
-For the current installation, the Jenkins Service is `jenkins` in namespace
-`jenkins`, exposing port 8080. Run this on the machine hosting your browser:
+### Credentials and external secrets
+
+| ID/location | Type and exact purpose |
+| --- | --- |
+| `ghcr-write` in trusted | Username/password: GitHub machine account + PAT classic with `write:packages` (includes package read), authorized for the organization/SSO and both GHCR packages. No delete/admin permission. Avoid repository scope if your account setup permits; associate packages with the repository. |
+| `gitops-write` in trusted | Username/password: separate GitHub account/token, fine-grained token restricted to this repository, Contents read/write (and implicit Metadata read). Writes stage/dev commits and `release/*` branches; does not merge prod. No Actions, administration or package permissions. |
+| `ci-read` in trusted | Username/password: Jenkins service user/API token; Overall/Read, Job/Read/Discover on app-ci and artifact read only. HTTP Request uses it to verify build status/revision. No Build/Configure/admin permission is needed for this user. |
+| SCM discovery/checkout | Separate read-only GitHub credential; private repository contents read and discovery metadata. GitHub status reporting needs Commit statuses write or appropriate GitHub App Checks permission; do not reuse GitOps credentials. |
+| Optional future PR automation | Separate GitHub App installation/fine-grained token: this repository Pull requests read/write and Contents read. No credential is used by current code for PR creation; open the printed compare link manually. |
+| Argo repository access | Read-only deploy key or GitHub App credential in Argo CD if the repository is private. |
+| `ghcr-pull-secret`, each app namespace | Kubernetes dockerconfigjson with a distinct package-reader credential (`read:packages`), no push permission. |
+| `backend-secrets`, each app namespace | `SECRET_KEY`, `FIRST_SUPERUSER_PASSWORD`, `POSTGRES_PASSWORD`, optional `SMTP_PASSWORD`; unique strong values per environment. |
+| `db-secrets`, each app namespace | `POSTGRES_PASSWORD`, matching that environment's backend secret. |
+| `app-tls`, each app namespace | TLS certificate/key for the actual ingress hostname, issued by your certificate management system. |
+
+The old `ghcr-creds` mounted Kubernetes Secret is not used by either pipeline.
+Only its manifest reference was inspected; no live Secret was read. Provision
+Jenkins credentials from your secret manager. Never paste real values into Git,
+job parameters, shell tracing, or documentation. Out-of-band app Secrets are
+intentionally outside Argo's managed/pruned resource set. The old sealed secrets
+are namespace/cluster-specific and cannot be reused in `app-*` unchanged.
+
+## Environments and immutable artifacts
+
+- **Feature branches:** run all checks, build both image archives, publish through
+  the trusted job to `sha-<40-character-SHA>`. No deployment by default. PR builds
+  run checks/build validation with no publishing or write credentials.
+- **Dev:** run `trusted/publish`, `MODE=dev`, exact `CI_JOB` and `CI_BUILD` from a
+  successful repository-branch build. An authorized release manager approves.
+  Existing images are reused; missing images are copied from retained checked
+  archives. Git changes only; Argo deploys. Retain archives until published.
+- **Stage:** a successful application-changing main build automatically publishes
+  and writes its exact SHA/digests to stage. A superseded build cannot roll stage
+  back. Argo deploys the Git change. Failed publish/promotion can be retried with
+  the same numbered CI build; no image rebuild is needed.
+- **Prod:** discovered version tags schedule release mode; alternatively run
+  `trusted/publish` with `MODE=release`, `RELEASE_TAG=vX.Y.Z`. An authorized input
+  gate confirms that the digest pair actually ran successfully in stage. Jenkins
+  verifies main ancestry, both SHA images and matching stage Git history, retags
+  the existing digests, and pushes only `release/vX.Y.Z`. Open the printed compare
+  link as a PR, obtain review, then merge. Argo automatically syncs after merge.
+
+SHA tags are write-once **by publisher policy**, not a registry immutability
+feature. Existing tags are never overwritten, even on a repeated CI build. Both
+images are built before either is published. A partially completed upload is
+retryable; no environment changes until both images resolve. Kubernetes overlays
+record SHA tags **and digests**; Kustomize renders the digest as the authoritative
+image reference. Release tags may exist before the production PR is approved;
+creating a registry tag does not deploy it. Restrict GHCR writers and retention
+so deployed digests cannot be deleted. Digests prevent tag movement changing Pods.
+
+Frontend images use an empty `VITE_API_URL`, so browser requests use the current
+origin. Ingress routes `/api` to FastAPI and `/` to nginx. Build-time hostnames
+must not vary by environment. Local Compose can still supply its API build arg.
+Backend probes use the existing `/api/v1/utils/health-check/`; it is a process
+health check, not a database readiness check. PostgreSQL has a readiness check.
+Argo sync waves create config/storage/database at -2, run the migration Sync hook
+at 0, and roll out backend/frontend at 1. A Sync hook allows first installation
+with database resources in earlier waves; a PreSync hook would run too soon.
+Migration failures block rollout. Use backwards-compatible migrations: old Pods
+remain serving during migrations. The retained single-instance PostgreSQL design
+is not HA; arrange backups/restore and appropriate storage before production.
+Adminer is preserved as an internal Service, without public ingress.
+
+### Recursion and concurrency
+
+CI inspects the actual changed paths, not just `[skip ci]` text or author identity.
+Commits changing only `deploy/`, `argocd/` or Markdown render/validate overlays but
+skip application tests/build/archive/publication. This includes generated
+promotion commits and reviewed production overlay changes. Mixed source changes
+still build. Version tags never rebuild. Such GitOps/docs-only commits have no
+SHA image; release the recorded stage application SHA, not the subsequent bot SHA.
+
+Both jobs disable concurrent builds per job. The publisher also takes a global
+lock for all registry and Git writes. Stage checks source freshness and monotonic
+Git ancestry, so a delayed older build cannot overwrite a newer promotion.
+Git writes use normal fast-forward pushes (no force) and retry after fetching
+and regenerating only the selected overlay, so unrelated concurrent main changes
+are preserved. Dev selection is explicit and serialized. Production uses a
+version-specific branch and GitHub review; require an up-to-date branch before
+merging, and reject obsolete release PRs. Historical promotion records remain in
+Git; `promotion.json` records SHA, digest pair and optional release version.
+
+## Release procedure
+
+Tag the actual built application commit recorded by stage. A plain tag of main's
+latest bot commit intentionally fails because that commit has no built images.
 
 ```bash
-kubectl port-forward -n jenkins service/jenkins 8080:8080 --address 127.0.0.1
+git checkout main
+git pull --ff-only
+release_sha=$(python3 -c 'import json; print(json.load(open("deploy/overlays/stage/promotion.json"))["sha"])')
+git tag v1.2.0 "$release_sha"
+git push origin v1.2.0
 ```
 
-Open <http://localhost:8080> and sign in with your existing Jenkins account.
-Leave the command running; press Ctrl+C to stop forwarding. If port 8080 is
-occupied, use `8081:8080` and open <http://localhost:8081>.
+Tag discovery schedules the trusted release process; approve its Jenkins input
+only after checking Argo `app-stage` is Healthy/Synced at the recorded digest pair
+and running the appropriate smoke tests. Jenkins deliberately has no Argo/cluster
+access and cannot verify runtime health itself. If discovery is unavailable,
+start release mode manually. Missing images or absent stage history fail closed.
+Jenkins opens no PR itself: follow its printed GitHub comparison link, create the
+PR and review the exact production digest/config diff. Do not merge an older
+release PR after a newer release. No image rebuild occurs during this procedure.
 
-If kubectl and the forward run on a remote host, open an SSH tunnel from your
-own computer in a separate terminal:
+## GitHub rules required
 
-```bash
-ssh -N -L 8080:127.0.0.1:8080 <user>@<remote-host>
-```
+Protect main: require PR review, code-owner review, dismiss stale approvals,
+require approval of the last push, require the Jenkins CI status and up-to-date
+branches; prohibit force push and deletion. Add your real infrastructure/release
+team to CODEOWNERS for `Jenkinsfile*`, `ci/`, `deploy/`, `argocd/`, Dockerfiles,
+`.github/`, and especially all production-affecting shared base resources. No
+placeholder CODEOWNERS is supplied because the actual authorized team is unknown.
+Changes to the shared base affect prod immediately after merge and require the
+same production review as the prod overlay. Limit ruleset bypass to the dedicated
+GitOps machine account needed for automatic stage/dev commits; no human/developer
+bypass. That account's trusted code writes only the intended overlay. GitHub does
+not provide a path-scoped Contents-write token: compromise of this bypass account
+can change prod or pipeline code. If this residual risk is unacceptable, use a
+separate stage/dev GitOps repository or an independently enforcing GitHub App
+before enabling automatic direct commits. Restrict token access and audit usage.
 
-Port forwarding opens the Jenkins interface. It does not start the application.
+Protect `v*` tags with rulesets: only release managers may create them; forbid
+updates/deletion. Allow the GitOps writer to create short-lived `release/*`
+branches, but never auto-merge them. Configure webhooks and required status names
+from an observed Jenkins run. Old GitHub Actions deployment workflows are renamed
+`.yml.disabled`; other template maintenance/test workflows remain supplemental,
+not the deployment authority. Review their secrets separately, especially the
+legacy generated-client workflow's write token. Jenkins remains required CI.
 
-## Configure the Kubernetes cloud
+## Argo CD bootstrap and rollback
 
-In **Manage Jenkins**, open **Clouds** and configure a Kubernetes cloud. Use the
-cloud name `kubernetes` for the default selection used by this Jenkinsfile.
-Configure the Kubernetes connection and test it. Agent Pods must be created in
-`dev`, as specified by the pipeline.
+See [deployment.md](deployment.md) for operator-only bootstrap, prerequisites,
+rollbacks and legacy-manifest migration. No bootstrap command is run by Jenkins.
 
-For this in-cluster installation, use a controller URL reachable from the agent
-Pods, such as:
+## Verification and operating limits
 
-```text
-http://jenkins.jenkins.svc.cluster.local:8080
-```
+Local results are recorded in [ci/VERIFICATION.md](ci/VERIFICATION.md). Before live
+use, validate both pipelines with your controller's Declarative linter, then run
+a non-production acceptance exercise covering: PR credential denial, feature
+publish, repeated SHA publication, main promotion, GitOps recursion, overlapping
+main builds, missing-image release failure, release approval and prod PR review.
+Use a registry read/write sandbox for this exercise. Monitor both CI and publisher
+jobs plus Argo application health. Jenkins build retention is 30 CI builds/10
+archive sets and 100 publisher builds; configure adequate artifact storage.
 
-For TCP agent connections, configure the Jenkins tunnel as
-`jenkins-agent.jenkins.svc.cluster.local:50000`, and ensure the controller's inbound
-agent listener is enabled. Alternatively, configure WebSocket agent connections.
-Do not use `http://localhost:8080` as the agent-facing controller URL: localhost
-inside the agent Pod refers to that Pod.
-
-The [controller RBAC file](k8s/rbac/jenkins-controller-dev-rbac.yaml) describes
-agent-management permissions for the `jenkins` service account in namespace
-`jenkins`. Check those identity assumptions against your installation before
-using it. The broader [agent RBAC file](k8s/rbac/jenkins-dev-rbac.yaml) grants
-application and secret management permissions and is unnecessary for this CI
-pipeline. This guide does not require applying either file automatically.
-
-The agent Pod disables Kubernetes service account token mounting. The controller
-uses its own credentials to manage the agent; the build containers do not need
-Kubernetes API credentials.
-
-See the official [Kubernetes plugin documentation](https://plugins.jenkins.io/kubernetes/)
-for cloud configuration and agent connection options.
-
-## Create the pipeline job
-
-1. Select **New Item**, give the job a name, and choose **Pipeline**.
-2. Under **Pipeline**, select **Pipeline script from SCM**.
-3. Select **Git** and enter this repository's clone URL.
-4. For a private repository, select a Jenkins-managed checkout credential with
-   read access. Keep tokens and private keys out of repository files.
-5. Set the branch specifier to the branch containing the updated Jenkinsfile,
-   such as `*/main` or `*/master`, matching your repository.
-6. Set **Script Path** to `Jenkinsfile`, save, and select **Build Now**.
-
-An uncommitted local Jenkinsfile change will not be loaded by an SCM job. The job
-must check out a revision containing that change. No automatic webhook trigger is
-configured in this Jenkinsfile; configure triggers separately if needed.
-
-See [Jenkins Pipeline setup](https://www.jenkins.io/doc/book/pipeline/getting-started/)
-for SCM job configuration.
-
-## Pipeline stages
-
-| Stage | What it runs |
-| --- | --- |
-| Checkout | Checks out the job's configured SCM revision once. |
-| Backend Checks and Tests | Installs locked dependencies with `uv sync --frozen`; runs mypy, Ruff lint and format checks; waits for the test database, runs Alembic migrations and initial data setup; executes pytest with coverage. |
-| Frontend Check | Runs `npm ci` and `npm run build`, including TypeScript compilation and Vite bundling. |
-| Build Container Images | Starts BuildKit, waits up to 60 seconds for readiness, and builds the backend and frontend Dockerfiles into local OCI archives. |
-
-Stages run sequentially. An earlier failure prevents later stages from running.
-Concurrent runs of the same job are disabled. The execution timeout is 45 minutes
-after the top-level agent is allocated; agent provisioning can take additional time.
-
-The temporary Pod contains:
-
-| Container | Purpose |
-| --- | --- |
-| `python-tester` | Python 3.10 and uv 0.5.11 for backend checks and tests. |
-| `node-tester` | Node.js 20 for frontend installation and compilation. |
-| `postgres-test` | PostgreSQL 16 for the isolated `app_ci` test database. |
-| `buildkit` | BuildKit v0.24.0 for local image builds. |
-| Plugin-provided inbound agent | Connects the Pod to Jenkins and manages the shared workspace. |
-
-## Test configuration and credentials
-
-Backend tests connect to `127.0.0.1:5432`, database `app_ci`, user `postgres`.
-PostgreSQL listens only on loopback inside the agent Pod and uses the explicit
-test-only password configured in the Jenkinsfile. This password is only for the
-disposable CI database and must never be reused for an application database. It has no Service or persistent
-volume and does not access the application database.
-
-The backend stage generates a fresh signing key and administrator password for
-each run, with shell tracing disabled while generating them. The test
-administrator email is `ci-admin@example.com`. These are test credentials, not
-Jenkins login credentials.
-
-`ENVIRONMENT=local` enables the application's local test behavior. The frontend
-uses `VITE_API_URL=http://localhost:8000` for the compile and image-build checks.
-This is a CI build setting, not a deployment URL.
-
-The pipeline mounts neither `ghcr-creds` nor `ghcr-pull-secret`. Git checkout
-credentials, when needed, are configured in Jenkins separately.
-
-## Results and cleanup
-
-Open the build's **Console Output** for stage logs and failures. Jenkins publishes
-`backend/test-results.xml` through JUnit when pytest produces it and archives
-`backend/coverage.xml` when coverage data is available. Coverage generation is attempted even when
-pytest fails, and pytest's failure status is preserved. Reports can be absent if setup,
-linting, or test collection fails before they are generated; their absence does not make a
-failed stage successful.
-
-Image builds write `/tmp/backend-ci.tar` and `/tmp/frontend-ci.tar` inside the
-BuildKit container. These archives are not published or archived in Jenkins and
-are discarded with the temporary Pod. The pipeline cleans all workspace contents through the Python tool container
-before the inbound agent removes the workspace, so root-owned build files do not
-block cleanup.
-
-## Troubleshooting
-
-| Symptom | Check |
-| --- | --- |
-| Pipeline does not recognize `kubernetes`, `junit`, or `timestamps` | Required plugins and their dependencies are installed and enabled. |
-| Agent stays pending or does not connect | Cloud connection, controller RBAC, `dev` namespace, resource capacity, image pull access, and the agent-facing Jenkins URL/tunnel. |
-| Pod is rejected as privileged | The current BuildKit configuration requires privileged containers; use an authorized build environment or change the builder configuration. |
-| PostgreSQL connection fails | `postgres-test` startup logs and the test settings above. The prestart script retries database availability before migrating. |
-| Backend lint stage fails | Resolve the reported mypy, Ruff lint, or formatting errors; dependency installation alone is not a passing test run. |
-| Dependency installation fails | Package registry access and consistency between manifests and lockfiles. |
-| BuildKit exits or readiness times out | Daemon output printed in the console, cluster restrictions, and available memory/disk space. |
-| Jenkins shows an older pipeline | The job's selected branch and checked-out revision contain the intended Jenkinsfile. |
-| Local Jenkins URL stops responding | The port-forward process is still running and the controller Pod is available. Restart forwarding after Pod replacement. |
-
-## Current scope
-
-The pipeline checks backend code, runs backend tests, compiles the frontend, and
-checks both Dockerfile builds. It does not run Playwright browser tests, validate
-Kubernetes manifests, scan images, promote releases, or deploy workloads.
-
-BuildKit remains privileged, and the agent uses the `dev` namespace. Restrict
-which jobs and repository contributors can execute this pipeline. The current
-Dockerfiles also retain their existing dependency installation commands; CI
-checks do not make those commands fully reproducible.
-
-The Jenkinsfile has passed offline YAML and shell syntax checks, including
-report failure handling. Backend mypy, Ruff lint, and formatting checks passed
-on 38 source files. Migrations and all 55 backend tests passed locally against a
-temporary PostgreSQL 16 database, using the cached backend image dependencies.
-Coverage was 94% with test files included. A successful end-to-end Jenkins run,
-including frontend compilation and both container builds, has not yet been confirmed.
+Tools are downloaded from fixed upstream releases with fixed archive SHA256s;
+kubeconform also needs access to its upstream Kubernetes schema repository. For
+fully offline validation, mirror schemas/tools internally and pin that mirror.
+Base/agent images use explicit versions but are not digest pinned, and their age
+is not a security-support guarantee; maintain reviewed updates and scan images.
+No image signing or vulnerability gate has been added in this change.
