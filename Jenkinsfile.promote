@@ -24,7 +24,6 @@ spec:
         skipDefaultCheckout(true)
         disableConcurrentBuilds()
         timeout(time: 60, unit: 'MINUTES')
-        timestamps()
         buildDiscarder(logRotator(numToKeepStr: '100'))
     }
     parameters {
