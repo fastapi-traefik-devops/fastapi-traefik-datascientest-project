@@ -60,7 +60,7 @@ spec:
                         }
 
                         if (params.MODE == 'dev' &&
-                            !(params.CI_JOB ==~ /app-ci\/[A-Za-z0-9_.%\-]+/) ||
+                            (!(params.CI_JOB ==~ /app-ci\/[A-Za-z0-9_.%\-]+/) ||
                             params.CI_JOB.startsWith('app-ci/PR-'))) {
                             error('Dev promotion requires a repository branch job under app-ci; PR jobs are rejected')
                         }
