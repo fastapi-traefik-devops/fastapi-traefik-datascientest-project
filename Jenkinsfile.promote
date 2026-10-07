@@ -105,7 +105,7 @@ spec:
                     container('publisher') {
                         withCredentials([
                             usernamePassword(credentialsId: 'ghcr-write', usernameVariable: 'GHCR_USER', passwordVariable: 'GHCR_TOKEN'),
-                            usernamePassword(credentialsId: 'gitops-write', usernameVariable: 'GIT_USER', passwordVariable: 'GIT_TOKEN')
+                            usernamePassword(credentialsId: 'gitops-app', usernameVariable: 'GIT_USER', passwordVariable: 'GIT_TOKEN')
                         ]) {
                             withEnv(["PROMOTION_MODE=${params.MODE}", "SOURCE_JOB=${params.CI_JOB}", "RELEASE_TAG=${params.RELEASE_TAG}"]) {
                                 sh 'sh ci/publish.sh'
