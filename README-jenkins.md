@@ -1,3 +1,9 @@
+> **Historischer Entwurf für spätere Phasen.** Die aktuelle Phase-1-Architektur,
+> Installationsschritte und Security Gates stehen in
+> [infra/jenkins-host/README.md](infra/jenkins-host/README.md).
+> Die nachfolgenden Kubernetes-Agent-, GitOps- und Production-Anweisungen sind
+> in Phase 1 nicht aktiv und dürfen nicht als aktueller Betriebsweg verwendet werden.
+
 # GitHub Flow + Jenkins + GHCR + Argo CD
 
 `main` is the only long-lived branch. Use short-lived feature branches and reviewed

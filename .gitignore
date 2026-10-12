@@ -17,3 +17,17 @@ __pycache__/
 # Python cache
 __pycache__/
 *.py[cod]
+
+# Private recovery material and local kind tooling
+.migration-backup/
+sealed-secrets-key-backup.yaml
+.tools/
+
+# Private host Jenkins bootstrap state
+.jenkins-host/
+
+# Ephemeral Phase 1 test credentials, reports and image archives
+.ci-private/
+.ci-output/
+.ci-security/
+frontend/openapi-ts-error-*.log

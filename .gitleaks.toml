@@ -1,0 +1,22 @@
+title = "Phase 1: default rules with reviewed encrypted-value false positives"
+[extend]
+useDefault = true
+
+# Ciphertext is not an API credential. Match both the exact SealedSecret path
+# and the encrypted value syntax; plaintext stringData remains scanned.
+[[allowlists]]
+description = "Bitnami SealedSecret ciphertext, not plaintext credentials"
+condition = "AND"
+paths = ['''(?:k8s/overlays/dev/sealed-secret-(?:backend|db)\.yaml|infra/kind/secrets/app-(?:dev|stage)/(?:backend|db)-secrets\.yaml)$''']
+regexTarget = "line"
+regexes = ['''^\s+(?:SECRET_KEY|POSTGRES_PASSWORD|FIRST_SUPERUSER_PASSWORD):\s+Ag[A-Za-z0-9+/=]+\s*$''']
+
+# Jenkins plugin versions such as timestamped releases resemble API keys to
+# the generic rule. Restrict this exception to the lock file and its version
+# syntax; every entry is also checked against the official update center.
+[[allowlists]]
+description = "Verified Jenkins plugin coordinates"
+condition = "AND"
+paths = ['''(?:^|/)infra/jenkins-host/plugins\.lock\.txt$''']
+regexTarget = "line"
+regexes = ['''^[a-z][a-z0-9-]+:[0-9][0-9A-Za-z._-]*$''']

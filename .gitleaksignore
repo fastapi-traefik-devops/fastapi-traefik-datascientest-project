@@ -1,0 +1,7 @@
+# Reviewed upstream documentation from 2018: three occurrences of a historical
+# local Jupyter demo session token. Treat the session as compromised/retired.
+# No active project credential uses this token. Exact immutable fingerprints
+# only; future documentation and working-tree tokens remain blocking findings.
+7f8bfc8faae604ee733354af80fc61234d1d6ff8:{{cookiecutter.project_slug}}/README.md:generic-api-key:150
+7f8bfc8faae604ee733354af80fc61234d1d6ff8:{{cookiecutter.project_slug}}/README.md:generic-api-key:157
+7f8bfc8faae604ee733354af80fc61234d1d6ff8:{{cookiecutter.project_slug}}/README.md:generic-api-key:163

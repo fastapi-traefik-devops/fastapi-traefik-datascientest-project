@@ -222,7 +222,7 @@ Frontend docs: [frontend/README.md](./frontend/README.md).
 
 ## Jenkins CI
 
-Jenkins setup, local access, pipeline stages, and troubleshooting: [README-jenkins.md](./README-jenkins.md).
+Phase 1 Jenkins runs in Docker outside Kubernetes. It checks out source, runs backend/frontend tests and security gates, builds both images and publishes immutable full-SHA tags to GHCR through a separate trusted Docker publisher. Setup and local validation: [infra/jenkins-host/README.md](./infra/jenkins-host/README.md). The older GitOps design in [README-jenkins.md](./README-jenkins.md) is historical and deferred.
 
 ## Deployment
 
@@ -231,8 +231,7 @@ Deployment docs: [deployment.md](./deployment.md).
 ## Kubernetes GitOps
 
 Active manifests live in `deploy/base` and `deploy/overlays/{dev,stage,prod}`.
-Argo CD owns application deployment; Jenkins builds images and modifies Git.
-See [Jenkins setup and release procedures](README-jenkins.md) and
+Argo CD owns application deployment. Phase 1 Jenkins only builds and publishes images; GitOps changes are deferred to Phase 2. See [Phase 1 Jenkins CI](infra/jenkins-host/README.md) and
 [Argo bootstrap and rollback](deployment.md).
 
 `k8s/` is retained for historical/local reference. Do not apply it alongside the

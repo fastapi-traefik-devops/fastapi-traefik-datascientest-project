@@ -37,7 +37,7 @@ const AddItem = () => {
     reset,
     formState: { errors, isValid, isSubmitting },
   } = useForm<ItemCreate>({
-    mode: "onBlur",
+    mode: "onChange",
     criteriaMode: "all",
     defaultValues: {
       title: "",

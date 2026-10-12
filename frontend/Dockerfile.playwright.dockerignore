@@ -1,0 +1,11 @@
+node_modules
+dist
+.env
+.env.*
+.git
+playwright-report
+test-results
+playwright/.auth
+blob-report
+openapi.json
+*.log

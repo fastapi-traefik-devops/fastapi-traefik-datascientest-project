@@ -9,13 +9,13 @@ import React, { StrictMode } from "react"
 import ReactDOM from "react-dom/client"
 import { routeTree } from "./routeTree.gen"
 
-import { ApiError, OpenAPI } from "./client"
+import { ApiError, client } from "./client"
 import { CustomProvider } from "./components/ui/provider"
 
-OpenAPI.BASE = import.meta.env.VITE_API_URL
-OpenAPI.TOKEN = async () => {
-  return localStorage.getItem("access_token") || ""
-}
+client.setConfig({
+  baseURL: import.meta.env.VITE_API_URL || "",
+  auth: async () => localStorage.getItem("access_token") || "",
+})
 
 const handleApiError = (error: Error) => {
   if (error instanceof ApiError && [401, 403].includes(error.status)) {
