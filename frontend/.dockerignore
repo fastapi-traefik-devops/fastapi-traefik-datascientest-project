@@ -1,2 +1,12 @@
 node_modules
 dist
+.env
+.env.*
+.git
+tests
+playwright
+playwright-report
+test-results
+blob-report
+openapi.json
+*.log

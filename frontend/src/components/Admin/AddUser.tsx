@@ -44,7 +44,7 @@ const AddUser = () => {
     getValues,
     formState: { errors, isValid, isSubmitting },
   } = useForm<UserCreateForm>({
-    mode: "onBlur",
+    mode: "onChange",
     criteriaMode: "all",
     defaultValues: {
       email: "",

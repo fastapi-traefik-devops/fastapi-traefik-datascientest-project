@@ -21,7 +21,7 @@ const ChangePassword = () => {
     getValues,
     formState: { errors, isValid, isSubmitting },
   } = useForm<UpdatePasswordForm>({
-    mode: "onBlur",
+    mode: "onChange",
     criteriaMode: "all",
   })
 

@@ -1,13 +1,9 @@
-FROM node:20
+FROM mcr.microsoft.com/playwright:v1.64.0-noble@sha256:06a9939e57531807f8d5fd76ce44b53165ffb7d7501d87ab10e285c20b1e971f
 
 WORKDIR /app
-
-COPY package*.json /app/
-
-RUN npm install
-
-RUN npx -y playwright install --with-deps
-
-COPY ./ /app/
-
-ARG VITE_API_URL=${VITE_API_URL}
+COPY --chown=1000:1000 package.json package-lock.json ./
+RUN npm ci --no-audit --no-fund
+COPY --chown=1000:1000 . .
+USER 1000:1000
+ENV CI=true
+CMD ["npm", "run", "test:e2e"]

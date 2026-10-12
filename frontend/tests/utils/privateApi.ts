@@ -1,22 +1,19 @@
-// Note: the `PrivateService` is only available when generating the client
-// for local environments
-import { OpenAPI, PrivateService } from "../../src/client"
+import type { UserPublic } from "../../src/client"
 
-OpenAPI.BASE = `${process.env.VITE_API_URL}`
-
+// This endpoint exists exclusively for ENVIRONMENT=local.
 export const createUser = async ({
   email,
   password,
-}: {
-  email: string
-  password: string
-}) => {
-  return await PrivateService.createUser({
-    requestBody: {
-      email,
-      password,
-      is_verified: true,
-      full_name: "Test User",
+}: { email: string; password: string }): Promise<UserPublic> => {
+  const response = await fetch(
+    `${process.env.VITE_API_URL}/api/v1/private/users/`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email, password, full_name: "Test User" }),
     },
-  })
+  )
+  if (!response.ok)
+    throw new Error(`Test user creation failed: HTTP ${response.status}`)
+  return response.json()
 }

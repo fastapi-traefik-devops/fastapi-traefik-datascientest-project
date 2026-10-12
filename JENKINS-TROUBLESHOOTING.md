@@ -1,5 +1,5 @@
-> Historical investigation of the previous setup. Current namespaces, permissions
-> and pipeline behavior are documented in [README-jenkins.md](README-jenkins.md).
+> Historical investigation of the retired Kubernetes Jenkins setup. The active
+> Docker-only Phase 1 guide is [infra/jenkins-host/README.md](infra/jenkins-host/README.md).
 
 # Jenkins on Kubernetes: troubleshooting cheat sheet
 
