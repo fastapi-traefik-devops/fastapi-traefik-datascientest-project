@@ -1,5 +1,44 @@
 # DEV setup report
 
+## Live completion update — 2026-10-09 UTC
+
+**DEV is deployed and validated for initial internal use.** This update supersedes the blocked live status in the original inspection snapshot below. The snapshot is retained as the audit of what existed before deployment.
+
+- User authorized committing/pushing the five setup files; commit `1f3ba41` was pushed on `setup/dev-gitops` and subsequently merged by the user. Remote main and both Argo applications track `cb1bb5617741cd5b68d36b9d419b6014226b6751`.
+- User explicitly approved reusing existing legacy `dev` secrets. Created `app-dev/backend-secrets` and `app-dev/db-secrets` from those names in legacy dev; created `app-dev/ghcr-pull-secret` from legacy `dev/ghcr-creds`.
+- Source/target secret types, required nonempty keys and exact copied data were verified in memory. Backend/database passwords match and have no application-rejected default placeholders. No secret values were printed, generated, or saved to local files. Copying credentials does not copy legacy database contents; DEV has its own database/PVC.
+- Activated only `argocd/app-dev.yaml` from the merged configuration. Argo deployed the workloads from Git. No direct workload patch/apply or sync override was used. Stage and PROD configuration remain unchanged.
+- `app-dev`: Active. Argo Application: **Synced / Healthy**; sync operation **Succeeded**.
+- `prestart` migration hook: **Succeeded**, expected completed pod count reached; deleted by the configured HookSucceeded policy.
+- Backend, frontend, PostgreSQL and Adminer: **1/1 ready**, zero restarts in the completion check. Backend has one replica and the explicit one-worker command. Backend/frontend/migration digest pins match the Jenkins-produced pair recorded in DEV promotion.json.
+- Backend-to-database SQLAlchemy `SELECT 1`: **PASS**, returned 1 without printing credentials.
+- Traefik host `dev.example.com` routes HTTP internally through the existing ClusterIP service. `/`, `/api/v1/utils/health-check/`, `/api/v1/openapi.json`, `/docs`: **200**. Direct backend `/` returns expected **404** because no backend root route is defined; direct health/OpenAPI/docs each return **200**.
+- Recent DEV backend log sample: 35 successful health checks, zero ERROR lines. Public DNS/TLS/external service configuration was not added.
+
+### Current capacity and remaining limits
+
+After deployment: node Ready, 4 CPU/~7.76GiB memory. Measured usage **1856m CPU (46%) / 2945Mi memory (37%)**. Requests **2400m CPU / 2354Mi**; limits **8600m CPU / 10794Mi**. MemoryPressure/DiskPressure/PIDPressure remain False. DEV backend uses about 95Mi, compared with legacy dev backend about 416Mi. No active Jenkins agents were present during the measurement.
+Startup connection-refused probes occurred while frontend/backend were starting and subsequently recovered. PostgreSQL still has occasional one-second pg_isready readiness timeouts; all application pods were ready and Argo healthy at verification. This should be monitored during CI/load rather than treated as proof of peak capacity safety.
+The missing-secret, unpublished-Git, absent-Application, migration and runtime connectivity blockers are resolved. CI peak/load safety remains unmeasured; keep the original CI capacity/isolation, database durability and PROD prerequisites below. No PROD was created. Legacy dev remains running.
+
+### Commands used for completion
+
+- Python captured `kubectl get secrets -n dev -o json` and `kubectl get secrets -n app-dev -o json`, validated keys/types/password consistency, then invoked `kubectl create -f -` separately for each approved copied Secret. Secret manifests existed only in memory/stdin. Existing different target secrets would not have been overwritten.
+- `git fetch origin main`; `git show origin/main:argocd/app-dev.yaml`; `git show origin/main:deploy/overlays/dev/kustomization.yaml`; `git show origin/main:deploy/overlays/dev/promotion.json`.
+- `kubectl apply -f argocd/app-dev.yaml`.
+- `kubectl wait -n argocd application/app-dev --for=jsonpath='{.status.operationState.phase}'=Succeeded --timeout=45s`. The initial operation wait timed out while the rollout was still progressing; the subsequent wait succeeded without any patch or retry deployment.
+- `kubectl rollout status deployment/backend -n app-dev --timeout=45s`; equivalent frontend command.
+- `kubectl wait -n argocd application/app-dev --for=jsonpath='{.status.sync.status}'=Synced --timeout=45s`; equivalent health Healthy check.
+- `kubectl get pods,jobs,deployments,services,ingress,pvc -n app-dev`; `kubectl get applications -n argocd`; deployment command/replica/image custom-column inspection.
+- `kubectl exec -n app-dev deployment/backend -- python -c ...`: SQLAlchemy SELECT 1 and read-only urllib requests to the backend service and Traefik service with Host dev.example.com; output limited to query result/status/content type.
+- `kubectl logs -n app-dev deployment/backend --tail=40`: captured and filtered to health/error counts.
+- `kubectl get nodes -o wide`; `kubectl top nodes`; `kubectl top pods -A`; `kubectl describe nodes`; `kubectl get events -n app-dev --field-selector type=Warning --sort-by=.lastTimestamp`.
+- Final display: `git diff`, `git status --short`, `kubectl get all -n dev`, `kubectl get all -n app-dev`, `kubectl get applications -n argocd`, `cat DEV_SETUP_REPORT.md`.
+
+Only DEV_SETUP_REPORT.md changed locally during this completion step; this report update has not been committed or pushed. No Jenkins build/promotion or registry write was triggered.
+
+## Original inspection snapshot — before the merge and secret approval
+
 Inspection date: 2026-10-09 UTC. Target: `app-dev`, Argo Application `app-dev`.
 Result: local DEV configuration validated; namespace created; live GitOps deployment blocked.
 No commit, push, Jenkins build/promotion, image upload, stage deployment, or PROD creation was performed.
