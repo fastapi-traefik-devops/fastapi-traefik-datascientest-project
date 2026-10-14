@@ -42,7 +42,8 @@ pipeline {
     }
     post {
         success { archiveArtifacts artifacts: 'artifacts/.ci-output/published-images.json', fingerprint: true }
-        always { deleteDir() }
+        // cleanup runs after success, so the publication record is archived first.
+        cleanup { deleteDir() }
     }
 }
 
