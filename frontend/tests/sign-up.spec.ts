@@ -61,6 +61,7 @@ test("Sign up with valid name, email, and password", async ({ page }) => {
   await page.goto("/signup")
   await fillForm(page, full_name, email, password, password)
   await page.getByRole("button", { name: "Sign Up" }).click()
+  await page.waitForURL("/login")
 })
 
 test("Sign up with invalid email", async ({ page }) => {
@@ -88,6 +89,9 @@ test("Sign up with existing email", async ({ page }) => {
 
   await fillForm(page, fullName, email, password, password)
   await page.getByRole("button", { name: "Sign Up" }).click()
+  // Wait until the first registration is stored; navigating away earlier can
+  // abort the request, so the second sign-up would succeed instead of failing.
+  await page.waitForURL("/login")
 
   // Sign up again with the same email
   await page.goto("/signup")
@@ -95,9 +99,9 @@ test("Sign up with existing email", async ({ page }) => {
   await fillForm(page, fullName, email, password, password)
   await page.getByRole("button", { name: "Sign Up" }).click()
 
-  await page
-    .getByText("The user with this email already exists in the system")
-    .click()
+  await expect(
+    page.getByText("The user with this email already exists in the system"),
+  ).toBeVisible()
 })
 
 test("Sign up with weak password", async ({ page }) => {
