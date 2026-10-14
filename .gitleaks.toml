@@ -14,9 +14,11 @@ regexes = ['''^\s+(?:SECRET_KEY|POSTGRES_PASSWORD|FIRST_SUPERUSER_PASSWORD):\s+A
 # Jenkins plugin versions such as timestamped releases resemble API keys to
 # the generic rule. Restrict this exception to the lock file and its version
 # syntax; every entry is also checked against the official update center.
+# History scans pass each line with a leading newline, so allow surrounding
+# whitespace; the whole line must still be one plugin coordinate.
 [[allowlists]]
 description = "Verified Jenkins plugin coordinates"
 condition = "AND"
 paths = ['''(?:^|/)infra/jenkins-host/plugins\.lock\.txt$''']
 regexTarget = "line"
-regexes = ['''^[a-z][a-z0-9-]+:[0-9][0-9A-Za-z._-]*$''']
+regexes = ['''^\s*[a-z][a-z0-9-]+:[0-9][0-9A-Za-z._-]*\s*$''']
