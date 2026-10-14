@@ -13,7 +13,9 @@ export async function signUpNewUser(
   await page.getByPlaceholder("Password", { exact: true }).fill(password)
   await page.getByPlaceholder("Confirm Password").fill(password)
   await page.getByRole("button", { name: "Sign Up" }).click()
-  await page.goto("/login")
+  // The app redirects only after the account is stored; navigating away earlier can
+  // abort the request and leave tests working with a user that does not exist.
+  await page.waitForURL("/login")
 }
 
 export async function logInUser(page: Page, email: string, password: string) {
