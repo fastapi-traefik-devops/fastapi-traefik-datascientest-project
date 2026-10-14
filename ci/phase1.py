@@ -306,6 +306,20 @@ class CI:
             subprocess.run(["docker", "rm", "-f", self.name + "-" + suffix], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         subprocess.run(["docker", "network", "rm", self.name], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         shutil.rmtree(self.private, ignore_errors=True)
+        self.prune_images()
+
+    def prune_images(self):
+        # Built images leave CI only as archived tarballs, so drop every phase1/* tag on the
+        # isolated CI daemon, including leftovers of interrupted builds. Pinned base images
+        # (Playwright, Node, PostgreSQL) stay cached; build cache unused for 3 days is dropped.
+        quiet = {"stdout": subprocess.DEVNULL, "stderr": subprocess.DEVNULL}
+        listed = subprocess.run(["docker", "image", "ls", "--format", "{{.Repository}}:{{.Tag}}",
+                                 "--filter", "reference=phase1/*"], capture_output=True, text=True)
+        tags = [tag for tag in listed.stdout.split() if tag.startswith("phase1/")]
+        if tags:
+            subprocess.run(["docker", "image", "rm", "-f", *tags], **quiet)
+        subprocess.run(["docker", "image", "prune", "-f"], **quiet)
+        subprocess.run(["docker", "builder", "prune", "-f", "--filter", "until=72h"], **quiet)
 
 
 def main():

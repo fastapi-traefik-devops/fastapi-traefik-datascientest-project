@@ -17,12 +17,12 @@ pipeline {
                     if (!(params.CI_BUILD ==~ /[1-9][0-9]*/)) { error('Exact CI build number required') }
                     def source
                     waitUntil(initialRecurrencePeriod: 5000) {
-                        source = jenkins.model.Jenkins.get().getItemByFullName('app-ci/main').getBuildByNumber(params.CI_BUILD.toInteger())
-                        if (source == null) { error('Source CI build does not exist') }
-                        return !source.isBuilding()
+                        source = sourceBuild(params.CI_BUILD)
+                        if (!source.exists) { error('Source CI build does not exist') }
+                        return !source.building
                     }
-                    if (source.getResult().toString() != 'SUCCESS') { error('Source CI build must be SUCCESS') }
-                    def revision = source.getAction(hudson.plugins.git.util.BuildData)?.getLastBuiltRevision()?.getSha1String()
+                    if (source.result != 'SUCCESS') { error('Source CI build must be SUCCESS') }
+                    def revision = source.revision
                     if (!(revision ==~ /[0-9a-f]{40}/)) { error('Verified SCM revision required') }
                     env.EXPECTED_SOURCE_SHA = revision
                     copyArtifacts projectName: 'app-ci/main', selector: specific(params.CI_BUILD),
@@ -44,4 +44,14 @@ pipeline {
         success { archiveArtifacts artifacts: 'artifacts/.ci-output/published-images.json', fingerprint: true }
         always { deleteDir() }
     }
+}
+
+// Jenkins model objects (WorkflowRun) cannot be serialized, and waitUntil checkpoints the
+// pipeline between polls. Read the build here and keep only plain values in pipeline state.
+@NonCPS
+def sourceBuild(String number) {
+    def run = jenkins.model.Jenkins.get().getItemByFullName('app-ci/main')?.getBuildByNumber(number.toInteger())
+    if (run == null) { return [exists: false] }
+    return [exists: true, building: run.isBuilding(), result: run.getResult()?.toString(),
+            revision: run.getAction(hudson.plugins.git.util.BuildData)?.getLastBuiltRevision()?.getSha1String()]
 }
