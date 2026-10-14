@@ -5,7 +5,7 @@ pipeline {
         skipDefaultCheckout(true)
         disableConcurrentBuilds()
         timeout(time: 90, unit: 'MINUTES')
-        buildDiscarder(logRotator(numToKeepStr: '20', artifactNumToKeepStr: '5'))
+        buildDiscarder(logRotator(numToKeepStr: '20', artifactNumToKeepStr: '2'))
     }
     triggers { pollSCM('H/5 * * * *') }
     stages {
