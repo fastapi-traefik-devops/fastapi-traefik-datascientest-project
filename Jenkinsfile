@@ -6,6 +6,9 @@ pipeline {
         disableConcurrentBuilds()
         timeout(time: 90, unit: 'MINUTES')
         buildDiscarder(logRotator(numToKeepStr: '20', artifactNumToKeepStr: '2'))
+        // Only the trusted registry publisher may copy the verified image archives.
+        // Absolute name: relative names resolve from this job's folder (app-ci/).
+        copyArtifactPermission('/trusted/publish')
     }
     triggers { pollSCM('H/5 * * * *') }
     stages {
