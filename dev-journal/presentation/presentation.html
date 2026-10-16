@@ -1,0 +1,681 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Pre-Defense — FastAPI GitOps on k3s</title>
+
+  <!-- Reveal.js core -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@5.1.0/dist/reset.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@5.1.0/dist/reveal.css">
+
+  <!-- Font Awesome for icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+
+  <!-- Custom styles -->
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="reveal">
+    <div class="slides">
+
+      <!-- 1. TITLE -->
+      <section id="title" class="section-divider" data-state="is-section-divider">
+        <p class="kicker">DataScientest · DevOps Project · Pre-Defense</p>
+        <h1>Production-ready delivery of a FastAPI app<br><span class="accent">Jenkins + Argo CD GitOps on k3s</span></h1>
+        <p class="team">Vitalii TYTSKYI<span class="sep">·</span>Dionis FRANGU<span class="sep">·</span>Tatiana ZAINULLINA</p>
+        <p class="text-muted" style="font-size:13pt;">Team work: every approach was discussed and decided together</p>
+        <aside class="notes">Tatiana · 0:30. Introduce the team and the topic: we did not focus on writing an app, we focused on delivering one like a real engineering team.</aside>
+      </section>
+
+      <!-- 2. GOAL & APP -->
+      <section id="goal">
+        <h2><span class="num">01</span>Project goal &amp; application</h2>
+        <div class="content">
+          <div style="display:grid; grid-template-columns: 1fr 1.15fr; gap: 36px; align-items: start;">
+            <div>
+              <div class="callout teal" style="margin-bottom:20px;">
+                <p><strong>Goal:</strong> build, test, deploy, secure, monitor and recover an application the way a real engineering team does.</p>
+              </div>
+              <p class="tag info">The app — deliberately the stock template</p>
+              <ul>
+                <li><strong>Backend:</strong> FastAPI · SQLModel · PostgreSQL 16 · JWT auth · Alembic migrations</li>
+                <li><strong>Frontend:</strong> React · TypeScript · Vite · Chakra UI, served by nginx</li>
+                <li><strong>Edge:</strong> Traefik — <code>/api</code> → backend, <code>/</code> → frontend</li>
+              </ul>
+              <p class="text-muted" style="font-size:14pt;">Based on the open-source <em>Full Stack FastAPI Template</em> — the focus is the delivery platform, not the app code.</p>
+            </div>
+            <div class="shot" style="padding:10px; border-style:solid; border-color: var(--line-color);">
+              <img src="../img/dashboard.png" alt="FastAPI app dashboard">
+            </div>
+          </div>
+        </div>
+        <aside class="notes">Tatiana · 0:45. One sentence on the app, then move on — the interesting part is everything around it.</aside>
+      </section>
+
+      <!-- 3. ARCHITECTURE -->
+      <section id="architecture">
+        <h2><span class="num">02</span>Architecture <span class="text-muted" style="font-size:16pt; font-weight:400;">· target</span></h2>
+        <div class="content" style="padding-top:16px;">
+          <svg class="dia" viewBox="0 0 1160 535" width="1160" height="535">
+            <defs>
+              <marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+                <path d="M0,0 L10,5 L0,10 z" fill="#2DD4BF"/>
+              </marker>
+              <marker id="arg" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+                <path d="M0,0 L10,5 L0,10 z" fill="#8B9BB0"/>
+              </marker>
+              <marker id="arv" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+                <path d="M0,0 L10,5 L0,10 z" fill="#C084FC"/>
+              </marker>
+            </defs>
+
+            <!-- Delivery row -->
+            <rect x="0" y="8" width="190" height="64" rx="8" fill="#152133" stroke="#24344A"/>
+            <text x="95" y="36" text-anchor="middle" font-size="13pt" font-weight="600">Developer</text>
+            <text x="95" y="58" text-anchor="middle" font-size="10pt" fill="#8B9BB0">feature branch → PR</text>
+
+            <rect x="242" y="8" width="190" height="64" rx="8" fill="#152133" stroke="#2DD4BF"/>
+            <text x="337" y="36" text-anchor="middle" font-size="13pt" font-weight="600">GitHub · main</text>
+            <text x="337" y="58" text-anchor="middle" font-size="10pt" fill="#8B9BB0">code + deploy/overlays</text>
+
+            <rect x="484" y="8" width="190" height="64" rx="8" fill="#152133" stroke="#24344A"/>
+            <text x="579" y="36" text-anchor="middle" font-size="13pt" font-weight="600">Jenkins CI</text>
+            <text x="579" y="58" text-anchor="middle" font-size="10pt" fill="#8B9BB0">18 gates · build · scan</text>
+
+            <rect x="726" y="8" width="190" height="64" rx="8" fill="#152133" stroke="#24344A"/>
+            <text x="821" y="36" text-anchor="middle" font-size="13pt" font-weight="600">publisher</text>
+            <text x="821" y="58" text-anchor="middle" font-size="10pt" fill="#8B9BB0">verify · push · promote</text>
+
+            <rect x="968" y="8" width="190" height="64" rx="8" fill="#152133" stroke="#24344A"/>
+            <text x="1063" y="36" text-anchor="middle" font-size="13pt" font-weight="600">GHCR</text>
+            <text x="1063" y="58" text-anchor="middle" font-size="10pt" fill="#8B9BB0" class="mono">sha-&lt;commit&gt;</text>
+
+            <line x1="190" y1="40" x2="240" y2="40" stroke="#2DD4BF" stroke-width="2" marker-end="url(#ar)"/>
+            <line x1="432" y1="40" x2="482" y2="40" stroke="#2DD4BF" stroke-width="2" marker-end="url(#ar)"/>
+            <line x1="674" y1="40" x2="724" y2="40" stroke="#2DD4BF" stroke-width="2" marker-end="url(#ar)"/>
+            <line x1="916" y1="40" x2="966" y2="40" stroke="#2DD4BF" stroke-width="2" marker-end="url(#ar)"/>
+
+            <!-- Git change back to GitHub -->
+            <path d="M821,72 V110 H360 V74" fill="none" stroke="#F5B544" stroke-width="2" marker-end="url(#ar)"/>
+            <text x="590" y="128" text-anchor="middle" font-size="10.5pt" fill="#F5B544">Git change: image SHA + digest → deploy/overlays/&lt;env&gt;</text>
+
+            <text x="280" y="122" text-anchor="end" font-size="10pt" fill="#8B9BB0">Argo CD watches Git</text>
+
+
+            <!-- Image pull -->
+            <path d="M1063,72 V198" fill="none" stroke="#8B9BB0" stroke-width="2" stroke-dasharray="6 5" marker-end="url(#arg)"/>
+            <text x="1073" y="128" font-size="10pt" fill="#8B9BB0">pull by digest</text>
+
+            <!-- Proxmox host -->
+            <rect x="0" y="166" width="1160" height="367" rx="10" fill="none" stroke="#3A5170" stroke-dasharray="3 4"/>
+            <text x="14" y="187" font-size="10.5pt" fill="#8B9BB0">PROXMOX · TARGET LAYOUT</text>
+
+            <!-- VM100 -->
+            <rect x="16" y="200" width="168" height="225" rx="10" fill="#111C2B" stroke="#24344A"/>
+            <text x="32" y="222" font-size="11pt" font-weight="600" fill="#2DD4BF">VM100 · admin</text>
+            <g font-size="10.5pt" fill="#C7D2E0">
+              <text x="32" y="256">source code</text>
+              <text x="32" y="284">Ansible</text>
+              <text x="32" y="312">Terraform / scripts</text>
+              <text x="32" y="340">admin tools</text>
+            </g>
+            <text x="32" y="400" font-size="9.5pt" fill="#8B9BB0">builds the clusters ↗</text>
+
+            <!-- K1 -->
+            <rect x="198" y="200" width="334" height="225" rx="10" fill="#111C2B" stroke="#2DD4BF"/>
+            <text x="214" y="222" font-size="11pt" font-weight="600" fill="#2DD4BF">K1 · platform</text>
+            <rect x="214" y="236" width="146" height="62" rx="8" fill="#1B2A40" stroke="#24344A"/>
+            <text x="287" y="263" text-anchor="middle" font-size="12.5pt" font-weight="600">Jenkins</text>
+            <text x="287" y="283" text-anchor="middle" font-size="9.5pt" fill="#8B9BB0">CI + publisher</text>
+            <rect x="372" y="236" width="146" height="62" rx="8" fill="#1B2A40" stroke="#2DD4BF"/>
+            <text x="445" y="263" text-anchor="middle" font-size="12.5pt" font-weight="600">Argo CD</text>
+            <text x="445" y="283" text-anchor="middle" font-size="9.5pt" fill="#8B9BB0">GitOps for all</text>
+            <rect x="214" y="310" width="146" height="62" rx="8" fill="#1B2A40" stroke="#C084FC"/>
+            <text x="287" y="337" text-anchor="middle" font-size="12.5pt" font-weight="600">Prometheus</text>
+            <text x="287" y="357" text-anchor="middle" font-size="9.5pt" fill="#8B9BB0">metrics</text>
+            <rect x="372" y="310" width="146" height="62" rx="8" fill="#1B2A40" stroke="#C084FC"/>
+            <text x="445" y="337" text-anchor="middle" font-size="12.5pt" font-weight="600">Grafana</text>
+            <text x="445" y="357" text-anchor="middle" font-size="9.5pt" fill="#8B9BB0">dashboards</text>
+
+            <!-- K2 -->
+            <rect x="546" y="200" width="300" height="225" rx="10" fill="#111C2B" stroke="#24344A"/>
+            <text x="562" y="222" font-size="11pt" font-weight="600" fill="#2DD4BF">K2 · non-prod</text>
+            <rect x="562" y="236" width="128" height="80" rx="8" fill="#1B2A40" stroke="#24344A"/>
+            <text x="626" y="272" text-anchor="middle" font-size="13pt" font-weight="600" class="mono">dev</text>
+            <text x="626" y="294" text-anchor="middle" font-size="9.5pt" fill="#8B9BB0">app-dev</text>
+            <rect x="702" y="236" width="128" height="80" rx="8" fill="#1B2A40" stroke="#24344A"/>
+            <text x="766" y="272" text-anchor="middle" font-size="13pt" font-weight="600" class="mono">stage</text>
+            <text x="766" y="294" text-anchor="middle" font-size="9.5pt" fill="#8B9BB0">app-stage</text>
+
+            <!-- K3 -->
+            <rect x="860" y="200" width="284" height="225" rx="10" fill="#111C2B" stroke="#24344A"/>
+            <text x="876" y="222" font-size="11pt" font-weight="600" fill="#2DD4BF">K3 · prod</text>
+            <rect x="876" y="236" width="252" height="80" rx="8" fill="#1B2A40" stroke="#24344A"/>
+            <text x="1002" y="272" text-anchor="middle" font-size="13pt" font-weight="600" class="mono">prod</text>
+            <text x="1002" y="294" text-anchor="middle" font-size="9.5pt" fill="#8B9BB0">app-prod · 2 replicas</text>
+
+            <!-- Argo pulls from Git (drawn after K1 so the arrowhead stays visible) -->
+            <path d="M290,72 V150 H445 V233" fill="none" stroke="#8B9BB0" stroke-width="2" stroke-dasharray="6 5" marker-end="url(#arg)"/>
+
+            <!-- Argo sync arrows -->
+            <path d="M518,267 H538 V350 H1002" fill="none" stroke="#2DD4BF" stroke-width="2"/>
+            <line x1="626" y1="350" x2="626" y2="319" stroke="#2DD4BF" stroke-width="2" marker-end="url(#ar)"/>
+            <line x1="766" y1="350" x2="766" y2="319" stroke="#2DD4BF" stroke-width="2" marker-end="url(#ar)"/>
+            <line x1="1002" y1="350" x2="1002" y2="319" stroke="#2DD4BF" stroke-width="2" marker-end="url(#ar)"/>
+            <text x="840" y="368" text-anchor="middle" font-size="10pt" fill="#2DD4BF">Argo CD sync: prune + self-heal</text>
+
+            <!-- Metrics -->
+            <path d="M1002,405 H287 V375" fill="none" stroke="#C084FC" stroke-width="1.6" stroke-dasharray="5 4" marker-end="url(#arv)"/>
+            <line x1="600" y1="405" x2="600" y2="390" stroke="#C084FC" stroke-width="1.6" stroke-dasharray="3 3"/>
+            <line x1="1002" y1="405" x2="1002" y2="390" stroke="#C084FC" stroke-width="1.6" stroke-dasharray="3 3"/>
+            <text x="820" y="398" text-anchor="middle" font-size="10pt" fill="#C084FC">metrics from K1 · K2 · K3</text>
+
+            <!-- Namespace detail strip -->
+            <text x="16" y="452" font-size="10.5pt" fill="#8B9BB0">INSIDE EVERY APP NAMESPACE</text>
+            <g font-size="11.5pt">
+              <rect x="16" y="464" width="170" height="52" rx="8" fill="#152133" stroke="#24344A"/>
+              <text x="101" y="495" text-anchor="middle">Traefik Ingress</text>
+              <rect x="226" y="464" width="190" height="52" rx="8" fill="#152133" stroke="#24344A"/>
+              <text x="321" y="495" text-anchor="middle">frontend · nginx</text>
+              <rect x="436" y="464" width="190" height="52" rx="8" fill="#152133" stroke="#24344A"/>
+              <text x="531" y="495" text-anchor="middle">backend · FastAPI</text>
+              <rect x="666" y="464" width="200" height="52" rx="8" fill="#152133" stroke="#24344A"/>
+              <text x="766" y="495" text-anchor="middle">PostgreSQL + PVC</text>
+              <rect x="886" y="464" width="258" height="52" rx="8" fill="#152133" stroke="#24344A" stroke-dasharray="5 4"/>
+              <text x="1015" y="487" text-anchor="middle" font-size="10pt" fill="#8B9BB0">migration Job (sync hook)</text>
+              <text x="1015" y="506" text-anchor="middle" font-size="10pt" fill="#8B9BB0">Sealed Secrets · ConfigMaps</text>
+            </g>
+            <line x1="186" y1="490" x2="224" y2="490" stroke="#2DD4BF" stroke-width="2" marker-end="url(#ar)"/>
+            <line x1="416" y1="490" x2="434" y2="490" stroke="#2DD4BF" stroke-width="2"/>
+            <line x1="626" y1="490" x2="664" y2="490" stroke="#2DD4BF" stroke-width="2" marker-end="url(#ar)"/>
+          </svg>
+        </div>
+        <aside class="notes">Vitalii · 1:30. Top row: code → Jenkins CI (18 gates) → publisher → GHCR; the publisher records the new image in Git (orange). Bottom: target layout on Proxmox. VM100 is the admin machine with the code, Ansible and Terraform. K1 is the platform cluster: Jenkins, one Argo CD for everything, Prometheus and Grafana. K2 runs dev and stage, K3 runs prod. Argo CD pulls from Git and syncs K2 and K3; Prometheus collects metrics from all three clusters.</aside>
+      </section>
+
+      <!-- 4. INFRASTRUCTURE & IaC -->
+      <section id="infrastructure">
+        <h2><span class="num">03</span>Infrastructure &amp; IaC: Proxmox + k3s</h2>
+        <div class="content" style="padding-top:18px;">
+          <div style="display:grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 16px;">
+            <div class="stat"><p class="n">3 + 1</p><p class="l">k3s clusters (platform, non-prod, prod) + admin VM</p></div>
+            <div class="stat"><p class="n">4 / 8 / 100</p><p class="l">vCPU · GB RAM · GB HDD per node</p></div>
+            <div class="stat"><p class="n">HA + 1 VIP</p><p class="l">3 servers, embedded etcd; kube-vip API address</p></div>
+            <div class="stat"><p class="n" style="color: var(--wip);">8 cores</p><p class="l">physical CPU, the real bottleneck</p></div>
+          </div>
+          <div style="display:grid; grid-template-columns: 1.35fr 1fr; gap: 22px;">
+            <div class="card info" style="padding:14px 20px;">
+              <p class="tag info">IaC · run from VM100</p>
+              <ol class="steps">
+                <li><strong>VM template:</strong> Debian 13 cloud-init image <span class="tag done" style="margin:0 0 0 6px;">script</span></li>
+                <li><strong>Node VMs</strong> cloned from the template <span class="tag done" style="margin:0 0 0 6px;">script</span> <span class="tag wip" style="margin:0 0 0 4px;">→ Terraform</span></li>
+                <li><strong>Ansible</strong> <code>site.yml</code>: prepare nodes → first server → kube-vip → join servers → kubeconfig <span class="tag done" style="margin:0 0 0 6px;">done</span></li>
+                <li><strong>Jenkins:</strong> config as code (JCasC, Job DSL, pinned plugins + tools) <span class="tag done" style="margin:0 0 0 6px;">done</span></li>
+                <li><strong>Apps:</strong> Argo CD ApplicationSet re-creates every env from Git <span class="tag done" style="margin:0 0 0 6px;">done</span></li>
+              </ol>
+              <p style="font-size:13pt; margin:4px 0 0 0;" class="text-muted">k3s version pinned · secrets in Ansible Vault · kube-vip manifest vendored locally</p>
+            </div>
+            <div class="card wip" style="padding:14px 20px;">
+              <p class="tag wip">Target layout · in progress</p>
+              <ul style="margin-top:4px;">
+                <li><strong>VM100 · admin:</strong> code, Ansible, Terraform, tools</li>
+                <li><strong>K1 · platform:</strong> Jenkins, Argo CD, Prometheus, Grafana</li>
+                <li><strong>K2 · non-prod:</strong> <code>dev</code> + <code>stage</code></li>
+                <li><strong>K3 · prod:</strong> <code>prod</code></li>
+                <li>Today: Jenkins in Docker; apps tested on single-node <strong>minikube</strong></li>
+              </ul>
+            </div>
+          </div>
+        </div>
+        <aside class="notes">Vitalii · 1:15. Hardware in one line. Then the IaC chain: template and VMs are scripted, k3s is fully automated with Ansible, Jenkins is configured as code, apps come back from Git through Argo CD. Next: Terraform replaces the VM scripts. Finish with the target layout: admin VM plus three clusters — platform, non-prod, prod. Today Jenkins runs in Docker and the apps were tested on minikube.</aside>
+      </section>
+
+      <!-- 5. DOCKER -->
+      <section id="docker">
+        <h2><span class="num">04</span>Docker &amp; registry</h2>
+        <div class="content">
+          <div style="display:grid; grid-template-columns: 1.25fr 1fr; gap: 30px;">
+            <div>
+              <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 18px;">
+                <div class="card done">
+                  <h3><i class="fa-brands fa-python"></i>Backend</h3>
+                  <p>Multi-stage: uv build → Python 3.13 Alpine runtime. <strong>Non-root</strong> (UID 10001), healthcheck, no build or test tools inside.</p>
+                </div>
+                <div class="card done">
+                  <h3><i class="fa-solid fa-layer-group"></i>Frontend</h3>
+                  <p>Multi-stage: Node 24 build → <strong>unprivileged nginx</strong> (UID 101), healthcheck, only static files.</p>
+                </div>
+              </div>
+              <ul>
+                <li>Base images <strong>pinned by digest</strong>; locked dependencies (<code>uv.lock</code>, <code>npm ci</code>)</li>
+                <li>Registry: <strong>GHCR</strong> — <code>fastapi-backend</code>, <code>fastapi-frontend</code></li>
+                <li>Tag = <code>sha-&lt;full commit SHA&gt;</code>, <strong>write-once</strong>; deployed by <strong>digest</strong></li>
+                <li>Every image: non-root health smoke + Trivy scan before it may be published</li>
+              </ul>
+            </div>
+            <div class="shot">
+              <i class="fa-regular fa-image"></i>
+              <p><strong>Screenshot:</strong> GHCR package page</p>
+              <p>with <code>sha-…</code> tags</p>
+            </div>
+          </div>
+        </div>
+        <aside class="notes">Dionis · 0:45. Both images are now multi-stage, non-root, with healthchecks and digest-pinned bases. One immutable image per commit, deployed by digest — what we tested is exactly what runs.</aside>
+      </section>
+
+      <!-- 6. ENVIRONMENTS -->
+      <section id="environments">
+        <h2><span class="num">05</span>Environments: dev · stage · prod</h2>
+        <div class="content" style="padding-top:20px;">
+          <table class="tbl">
+            <thead>
+              <tr><th></th><th>dev</th><th>stage</th><th>prod</th></tr>
+            </thead>
+            <tbody>
+              <tr class="hl"><td>Runs</td><td>any selected branch</td><td>latest green <code>main</code></td><td>release <code>vX.Y.Z</code></td></tr>
+              <tr><td>Updated by</td><td>manual Jenkins run <code>MODE=dev</code></td><td>automatically after each merge</td><td>merging the release PR</td></tr>
+              <tr class="hl"><td>Gate</td><td>green CI + Jenkins approval</td><td>full CI on <code>main</code></td><td>tag + Jenkins approval + PR review</td></tr>
+              <tr><td>Replicas (be / fe)</td><td>1 / 1</td><td>1 / 1</td><td>2 / 2</td></tr>
+              <tr><td>Uvicorn workers</td><td>1</td><td>1</td><td>4</td></tr>
+              <tr><td>Host</td><td><code>dev.liora.aprt.info</code> · HTTP</td><td><code>stage.liora.aprt.info</code> · TLS</td><td><code>liora.aprt.info</code> · TLS</td></tr>
+              <tr><td><code>/docs</code> exposed</td><td>yes</td><td>no</td><td>no</td></tr>
+              <tr><td>Target cluster</td><td>K2 · non-prod</td><td>K2 · non-prod</td><td>K3 · prod</td></tr>
+            </tbody>
+          </table>
+          <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-top: 18px;">
+            <div class="callout teal"><p><strong>How:</strong> Kustomize <code>deploy/base</code> + one overlay per env → namespaces <code>app-dev</code> / <code>app-stage</code> / <code>app-prod</code>. Config via ConfigMap patches, secrets via Sealed Secrets.</p></div>
+            <div class="callout"><p><strong>TBD:</strong> first prod deployment · switch the <code>*.example.com</code> placeholders in the overlays to the <code>liora.aprt.info</code> hosts + DNS.</p></div>
+          </div>
+        </div>
+        <aside class="notes">Vitalii · 1:00. We have three environments, not two: stage is the automatic gate before prod. The differences are only config (replicas, workers, host, docs). The image is the same. Docker Compose is still used for local development.</aside>
+      </section>
+
+      <!-- 7. TESTS -->
+      <section id="tests">
+        <h2><span class="num">06</span>Tests</h2>
+        <div class="content">
+          <div style="display:grid; grid-template-columns: 1.2fr 1fr; gap: 30px;">
+            <div>
+              <div style="display:grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 18px;">
+                <div class="stat"><p class="n">55</p><p class="l">backend: 2 unit + 53 API / integration</p></div>
+                <div class="stat"><p class="n">89%</p><p class="l">backend coverage</p></div>
+                <div class="stat"><p class="n">41</p><p class="l">Playwright E2E tests</p></div>
+                <div class="stat"><p class="n">18</p><p class="l">required CI gates</p></div>
+              </div>
+              <ul style="margin-top:0;">
+                <li><strong>Where:</strong> Jenkins CI agent, every build — throwaway PostgreSQL + Mailpit containers, no host ports</li>
+                <li>Also: mypy, Ruff, Biome, TS + Vite build, CI-script tests (19)</li>
+                <li><strong>Any failed gate → no image → nothing to publish</strong></li>
+              </ul>
+              <div class="callout"><p><strong>TBD · tests on the deployed app:</strong> smoke test as an Argo CD <strong>PostSync hook</strong> (health, OpenAPI, frontend via Traefik) on every sync to K2 / K3</p></div>
+            </div>
+            <div class="shot">
+              <i class="fa-regular fa-image"></i>
+              <p><strong>Screenshot:</strong> Jenkins pipeline</p>
+              <p>18 green stages + test results</p>
+            </div>
+          </div>
+        </div>
+        <aside class="notes">Dionis · 0:45. Unit, API and now also end-to-end browser tests run in CI on every build, in isolated containers. Any failure stops the build. Next step: test the deployed app after each Argo CD sync.</aside>
+      </section>
+
+      <!-- 8. KUBERNETES -->
+      <section id="kubernetes">
+        <h2><span class="num">07</span>Kubernetes manifests</h2>
+        <div class="content">
+          <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 30px;">
+            <div>
+              <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 18px;">
+                <div class="card"><p style="margin:0;"><i class="fa-solid fa-cubes accent"></i>&nbsp; <strong>Deployments</strong><br><span class="text-muted">backend, frontend, postgres, adminer</span></p></div>
+                <div class="card"><p style="margin:0;"><i class="fa-solid fa-network-wired accent"></i>&nbsp; <strong>Services + Ingress</strong><br><span class="text-muted">ClusterIP, Traefik</span></p></div>
+                <div class="card"><p style="margin:0;"><i class="fa-solid fa-sliders accent"></i>&nbsp; <strong>ConfigMaps + Secrets</strong><br><span class="text-muted">sealed, per namespace</span></p></div>
+                <div class="card"><p style="margin:0;"><i class="fa-solid fa-database accent"></i>&nbsp; <strong>PVC + Job</strong><br><span class="text-muted">DB storage, migrations</span></p></div>
+              </div>
+              <p class="tag info">Argo CD sync order</p>
+              <ol class="steps">
+                <li>wave <code>-2</code>: config, storage, PostgreSQL</li>
+                <li>wave <code>0</code>: DB migration Job (sync hook) — failure blocks rollout</li>
+                <li>wave <code>1</code>: backend + frontend rollout</li>
+              </ol>
+            </div>
+            <div style="display:flex; flex-direction:column; gap:12px;">
+              <div class="shot" style="flex:1; min-height:220px;">
+                <i class="fa-regular fa-image"></i>
+                <p><strong>Screenshot:</strong> Argo CD — <code>app-stage</code></p>
+                <p>resource tree, Synced / Healthy</p>
+              </div>
+              <ul style="margin:0;">
+                <li>Probes, CPU + memory limits, no service-account tokens</li>
+                <li>PostgreSQL <code>Recreate</code>; PVC protected from Argo prune</li>
+              </ul>
+              <p class="tag wip" style="margin:0;">TBD · Helm chart for the app (bonus) · HPA</p>
+            </div>
+          </div>
+        </div>
+        <aside class="notes">Vitalii · 1:00. Kustomize for the app; Helm only for platform components. Highlight sync waves: migrations always run before the new pods.</aside>
+      </section>
+
+      <!-- 9. CI/CD FLOW -->
+      <section id="cicd-flow">
+        <h2><span class="num">08</span>CI/CD — the flow</h2>
+        <div class="content" style="padding-top:16px;">
+          <div style="display:grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-bottom: 14px;">
+            <p style="margin:0; font-size:14pt;"><strong class="accent">GitHub Flow model</strong> — one <code>main</code>, always deployable; short-lived branches + PRs</p>
+            <p style="margin:0; font-size:14pt;"><strong class="accent">GitOps</strong> — Jenkins never touches the app cluster; it commits <em>which image runs where</em></p>
+            <p style="margin:0; font-size:14pt;"><strong class="accent">Build once, deploy many</strong> — same image dev → stage → prod; only config differs</p>
+          </div>
+          <svg class="dia" viewBox="0 0 1160 380" width="1160" height="360">
+            <defs>
+              <marker id="ar2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+                <path d="M0,0 L10,5 L0,10 z" fill="#2DD4BF"/>
+              </marker>
+            </defs>
+            <!-- column headers -->
+            <g font-size="10pt" fill="#8B9BB0">
+              <text x="85" y="14" text-anchor="middle" fill="#8B9BB0">TRIGGER</text>
+              <text x="320" y="14" text-anchor="middle" fill="#8B9BB0">CI / CHECK</text>
+              <text x="590" y="14" text-anchor="middle" fill="#8B9BB0">TRUSTED PUBLISHER</text>
+              <text x="845" y="14" text-anchor="middle" fill="#8B9BB0">GATE</text>
+            </g>
+            <!-- Argo group -->
+            <rect x="960" y="24" width="198" height="352" rx="10" fill="#111C2B" stroke="#2DD4BF" stroke-dasharray="5 4"/>
+            <text x="1059" y="48" text-anchor="middle" font-size="10.5pt" fill="#2DD4BF" font-weight="600">Argo CD syncs from Git</text>
+
+            <!-- Row 1 dev -->
+            <g>
+              <rect x="0" y="62" width="170" height="74" rx="8" fill="#152133" stroke="#24344A"/>
+              <text x="85" y="95" text-anchor="middle" font-size="12.5pt" font-weight="600">feature branch</text>
+              <text x="85" y="117" text-anchor="middle" font-size="10pt" fill="#8B9BB0">push</text>
+              <rect x="215" y="62" width="210" height="74" rx="8" fill="#152133" stroke="#24344A"/>
+              <text x="320" y="95" text-anchor="middle" font-size="12.5pt" font-weight="600">app-ci</text>
+              <text x="320" y="117" text-anchor="middle" font-size="10pt" fill="#8B9BB0">lint · test · build image</text>
+              <rect x="470" y="62" width="240" height="74" rx="8" fill="#152133" stroke="#24344A"/>
+              <text x="590" y="95" text-anchor="middle" font-size="12.5pt" font-weight="600" class="mono">MODE=dev</text>
+              <text x="590" y="117" text-anchor="middle" font-size="10pt" fill="#8B9BB0">manual run · selected build</text>
+              <rect x="755" y="62" width="180" height="74" rx="8" fill="#152133" stroke="#F5B544"/>
+              <text x="845" y="95" text-anchor="middle" font-size="12.5pt" font-weight="600" fill="#F5B544">approval</text>
+              <text x="845" y="117" text-anchor="middle" font-size="10pt" fill="#8B9BB0">Jenkins input</text>
+              <rect x="990" y="72" width="138" height="54" rx="27" fill="#1B2A40" stroke="#2DD4BF"/>
+              <text x="1059" y="105" text-anchor="middle" font-size="13pt" font-weight="700">dev</text>
+            </g>
+            <!-- Row 2 stage -->
+            <g>
+              <rect x="0" y="178" width="170" height="74" rx="8" fill="#152133" stroke="#24344A"/>
+              <text x="85" y="211" text-anchor="middle" font-size="12.5pt" font-weight="600">merge PR</text>
+              <text x="85" y="233" text-anchor="middle" font-size="10pt" fill="#8B9BB0">→ main</text>
+              <rect x="215" y="178" width="210" height="74" rx="8" fill="#152133" stroke="#24344A"/>
+              <text x="320" y="211" text-anchor="middle" font-size="12.5pt" font-weight="600">app-ci</text>
+              <text x="320" y="233" text-anchor="middle" font-size="10pt" fill="#8B9BB0">lint · test · build image</text>
+              <rect x="470" y="178" width="240" height="74" rx="8" fill="#152133" stroke="#24344A"/>
+              <text x="590" y="211" text-anchor="middle" font-size="12.5pt" font-weight="600" class="mono">MODE=publish</text>
+              <text x="590" y="233" text-anchor="middle" font-size="10pt" fill="#8B9BB0">push to GHCR · bot commit</text>
+              <rect x="755" y="178" width="180" height="74" rx="8" fill="#152133" stroke="#4ADE80"/>
+              <text x="845" y="211" text-anchor="middle" font-size="12.5pt" font-weight="600" fill="#4ADE80">automatic</text>
+              <text x="845" y="233" text-anchor="middle" font-size="10pt" fill="#8B9BB0">green main only</text>
+              <rect x="990" y="188" width="138" height="54" rx="27" fill="#1B2A40" stroke="#2DD4BF"/>
+              <text x="1059" y="221" text-anchor="middle" font-size="13pt" font-weight="700">stage</text>
+            </g>
+            <!-- Row 3 prod -->
+            <g>
+              <rect x="0" y="294" width="170" height="74" rx="8" fill="#152133" stroke="#24344A"/>
+              <text x="85" y="327" text-anchor="middle" font-size="12.5pt" font-weight="600" class="mono">tag vX.Y.Z</text>
+              <text x="85" y="349" text-anchor="middle" font-size="10pt" fill="#8B9BB0">on the stage commit</text>
+              <rect x="215" y="294" width="210" height="74" rx="8" fill="#152133" stroke="#24344A" stroke-dasharray="5 4"/>
+              <text x="320" y="327" text-anchor="middle" font-size="12.5pt" font-weight="600">no rebuild</text>
+              <text x="320" y="349" text-anchor="middle" font-size="10pt" fill="#8B9BB0">reuse stage images</text>
+              <rect x="470" y="294" width="240" height="74" rx="8" fill="#152133" stroke="#24344A"/>
+              <text x="590" y="327" text-anchor="middle" font-size="12.5pt" font-weight="600" class="mono">MODE=release</text>
+              <text x="590" y="349" text-anchor="middle" font-size="10pt" fill="#8B9BB0">verify · approve · retag</text>
+              <rect x="755" y="294" width="180" height="74" rx="8" fill="#152133" stroke="#F5B544"/>
+              <text x="845" y="327" text-anchor="middle" font-size="12.5pt" font-weight="600" fill="#F5B544">release PR</text>
+              <text x="845" y="349" text-anchor="middle" font-size="10pt" fill="#8B9BB0">review + merge</text>
+              <rect x="990" y="304" width="138" height="54" rx="27" fill="#1B2A40" stroke="#2DD4BF"/>
+              <text x="1059" y="337" text-anchor="middle" font-size="13pt" font-weight="700">prod</text>
+            </g>
+            <!-- arrows -->
+            <g stroke="#2DD4BF" stroke-width="2">
+              <line x1="170" y1="99" x2="212" y2="99" marker-end="url(#ar2)"/>
+              <line x1="425" y1="99" x2="467" y2="99" marker-end="url(#ar2)"/>
+              <line x1="710" y1="99" x2="752" y2="99" marker-end="url(#ar2)"/>
+              <line x1="935" y1="99" x2="987" y2="99" marker-end="url(#ar2)"/>
+              <line x1="170" y1="215" x2="212" y2="215" marker-end="url(#ar2)"/>
+              <line x1="425" y1="215" x2="467" y2="215" marker-end="url(#ar2)"/>
+              <line x1="710" y1="215" x2="752" y2="215" marker-end="url(#ar2)"/>
+              <line x1="935" y1="215" x2="987" y2="215" marker-end="url(#ar2)"/>
+              <line x1="170" y1="331" x2="212" y2="331" marker-end="url(#ar2)"/>
+              <line x1="425" y1="331" x2="467" y2="331" marker-end="url(#ar2)"/>
+              <line x1="710" y1="331" x2="752" y2="331" marker-end="url(#ar2)"/>
+              <line x1="935" y1="331" x2="987" y2="331" marker-end="url(#ar2)"/>
+            </g>
+          </svg>
+          <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 10px;">
+            <p style="margin:0; font-size:13pt;"><span class="tag done" style="margin:0 8px 0 0;">Phase 1 · done</span>CI → 18 gates → verified images → GHCR</p>
+            <p style="margin:0; font-size:13pt;"><span class="tag wip" style="margin:0 8px 0 0;">Phase 2 · next</span>Git promotion → Argo CD → K2 / K3</p>
+          </div>
+        </div>
+        <aside class="notes">Tatiana · 1:30. Three rows = three environments. Row 1: any branch can go to dev, manually, with approval. Row 2: every green merge to main goes to stage automatically. Row 3: a version tag reuses the exact stage images — no rebuild — and production changes only when a human merges the release PR. In every case Argo CD does the deployment, Jenkins only writes Git.</aside>
+      </section>
+
+      <!-- 10. JENKINS JOBS / RELEASE / ROLLBACK -->
+      <section id="cicd-jobs">
+        <h2><span class="num">09</span>CI/CD — Jenkins jobs, release &amp; rollback</h2>
+        <div class="content" style="padding-top:14px;">
+          <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 12px;">
+            <div class="card info" style="padding:12px 18px;">
+              <h3><i class="fa-solid fa-flask"></i><code>app-ci</code> · CI agent</h3>
+              <p style="margin:0;">18 gates: secret scan → lint → unit / API / E2E → dependency audits → Docker build → non-root smoke → Trivy → attest. <strong>No credentials.</strong></p>
+            </div>
+            <div class="card info" style="padding:12px 18px;">
+              <h3><i class="fa-solid fa-shield-halved"></i><code>trusted/publish</code> · publisher agent</h3>
+              <p style="margin:0;">Separate agent. Checks CI = SUCCESS, Git SHA, all gates and archive hashes → pushes <code>sha-</code> tags to GHCR. Refuses a changed tag.</p>
+            </div>
+          </div>
+          <div style="display:grid; grid-template-columns: 1.1fr 1fr; gap: 26px;">
+            <div>
+              <p class="tag wip">Phase 2 · release <code>v1.2.0</code></p>
+              <ol class="steps">
+                <li>Tagged commit must be on <code>main</code></li>
+                <li><code>sha-&lt;commit&gt;</code> images exist in GHCR and match stage history</li>
+                <li>Jenkins approval: "this ran healthy in stage"</li>
+                <li>Retag existing image as <code>v1.2.0</code> — <strong>no rebuild</strong></li>
+                <li><code>release/v1.2.0</code> → PR to prod overlay → <strong>merge = approval</strong></li>
+              </ol>
+            </div>
+            <div>
+              <p class="tag info">Rollback = <code>git revert</code></p>
+              <ul style="margin-top:0;">
+                <li>Every deployment is a commit → revert it, Argo CD syncs in minutes</li>
+                <li>No rebuild: old digests stay in GHCR</li>
+                <li>DB migrations aren't auto-reversible → check schema</li>
+              </ul>
+              <p style="font-size:13pt; margin:4px 0 6px 0;"><span class="tag done" style="margin:0 8px 0 0;">Verified</span>full Phase 1 CI green (18 gates); earlier on minikube: CI → GHCR → Argo synced stage</p>
+              <p style="font-size:13pt; margin:0;"><span class="tag wip" style="margin:0 8px 0 0;">Not yet</span>Phase 1 run from <code>main</code> + GHCR push · promotion · prod</p>
+            </div>
+          </div>
+        </div>
+        <aside class="notes">Tatiana · 1:30. Two jobs on two separate agents: the CI agent has no credentials; only the publisher can push, and only after it has checked the CI result, the commit, every gate and the archive hashes. Release and rollback are the Phase 2 design — the GitOps part was already proven on minikube. Be honest about what is verified.</aside>
+      </section>
+
+      <!-- 11. DESIGN DECISIONS -->
+      <section id="decisions">
+        <h2><span class="num">10</span>CI/CD — design decisions</h2>
+        <div class="content">
+          <table class="tbl">
+            <thead><tr><th style="width:30%;">We chose</th><th style="width:22%;">Instead of</th><th>Why</th></tr></thead>
+            <tbody>
+              <tr><td><strong style="color:var(--text-color);">GitHub Flow branching model</strong></td><td>GitFlow / a <code>dev</code> branch</td><td>One service, continuous delivery: no need for develop/release/hotfix branches. Versions = tags. A dev <em>environment</em> exists — a dev <em>branch</em> isn't needed.</td></tr>
+              <tr><td><strong style="color:var(--text-color);">Artifact promotion</strong></td><td>environment branches</td><td>Promoting the same image is safer than merging code between branches that drift apart</td></tr>
+              <tr><td><strong style="color:var(--text-color);">Argo CD pull model</strong></td><td><code>kubectl apply</code> from Jenkins</td><td>No cluster credentials in CI; Git is the audit log; drift is auto-corrected</td></tr>
+              <tr><td><strong style="color:var(--text-color);">Two Jenkins jobs</strong></td><td>one pipeline with <code>when main</code></td><td>A branch author can edit the Jenkinsfile — only a separate job is a real credentials boundary</td></tr>
+              <tr><td><strong style="color:var(--text-color);">Manifests in the app repo</strong></td><td>separate config repo</td><td>Self-contained for one service; with more services → config repo + Argo CD Image Updater</td></tr>
+              <tr><td><strong style="color:var(--text-color);">Shared dev</strong></td><td>per-PR environments</td><td>Cheap on our 8 cores; later an ApplicationSet PR generator for previews</td></tr>
+            </tbody>
+          </table>
+          <p class="text-muted" style="font-size:13pt; margin-top:14px;">GitHub Flow is a branching <em>model</em>, not a GitHub product: our CI/CD tooling is <strong>Jenkins + Argo CD</strong>, not GitHub Actions.</p>
+        </div>
+        <aside class="notes">Tatiana · 1:00. Pick two or three rows to say out loud. Pre-empt the terminology question: GitHub Flow describes the branching model; it works with any CI.</aside>
+      </section>
+
+      <!-- 12. SECURITY -->
+      <section id="security">
+        <h2><span class="num">11</span>Security (DevSecOps)</h2>
+        <div class="content">
+          <div style="display:grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 16px;">
+            <div class="card done">
+              <h3><i class="fa-solid fa-magnifying-glass"></i>Image scanning</h3>
+              <p style="margin:0;"><strong>Trivy</strong> on every image: HIGH / CRITICAL or a secret <strong>blocks</strong> the build. Jenkins images: 0 High / Critical.</p>
+            </div>
+            <div class="card done">
+              <h3><i class="fa-solid fa-boxes-packing"></i>Dependencies</h3>
+              <p style="margin:0;"><strong>pip-audit</strong> + <strong>npm audit</strong> as blocking gates, <strong>Dependabot</strong> for updates. npm: <strong>62 → 0</strong> vulnerabilities.</p>
+            </div>
+            <div class="card done">
+              <h3><i class="fa-solid fa-key"></i>Secrets</h3>
+              <p style="margin:0;"><strong>Sealed Secrets</strong> in Git; <strong>Gitleaks</strong> scans code + full Git history; CI test secrets generated per run.</p>
+            </div>
+            <div class="card done">
+              <h3><i class="fa-solid fa-lock"></i>Secure pipeline</h3>
+              <p style="margin:0;">Only the publisher holds the GHCR token; CI agent has none. Builds in isolated Docker-in-Docker over TLS, no host socket.</p>
+            </div>
+            <div class="card done">
+              <h3><i class="fa-solid fa-shield"></i>Hardened runtime</h3>
+              <p style="margin:0;">Non-root images, digest-pinned bases, healthchecks; TLS on stage / prod ingress; Adminer not exposed.</p>
+            </div>
+            <div class="card done">
+              <h3><i class="fa-solid fa-user-shield"></i>RBAC <span class="text-muted" style="font-weight:400;">(bonus)</span></h3>
+              <p style="margin:0;">Argo AppProject whitelist: no Secrets, Namespaces or cluster resources; pods without SA tokens.</p>
+            </div>
+          </div>
+          <div class="callout"><p><strong>Known limits:</strong> Docker-in-Docker stays privileged (isolated CI host, no credentials) · untrusted fork PRs would need throwaway workers · cert-manager for TLS is next</p></div>
+        </div>
+        <aside class="notes">Dionis · 1:00. Requirement: at least 3 — we have six areas. Highlight: scanners block the build instead of warning, npm went from 62 known vulnerabilities to zero, and only the publisher can push images. Mention the remaining limits openly.</aside>
+      </section>
+
+      <!-- 13. MONITORING & DR -->
+      <section id="monitoring-dr">
+        <h2><span class="num">12</span>Monitoring &amp; disaster recovery</h2>
+        <div class="content">
+          <div style="display:grid; grid-template-columns: 1fr 1.25fr; gap: 28px;">
+            <div style="display:flex; flex-direction:column;">
+              <p class="tag wip">Monitoring · in progress</p>
+              <div class="shot" style="flex:1; min-height: 230px;">
+                <i class="fa-solid fa-chart-line"></i>
+                <p><strong>Screenshot:</strong> Grafana dashboard</p>
+                <p>Prometheus + Grafana on K1, metrics from K1 · K2 · K3</p>
+              </div>
+              <p style="font-size:13pt; margin-top:10px;" class="text-muted">Today: k8s probes, metrics-server, Argo CD sync/health status, Jenkins test reports</p>
+            </div>
+            <div>
+              <p class="tag done">Recovery · done</p>
+              <table class="tbl" style="margin-bottom:14px;">
+                <tbody>
+                  <tr><td style="width:32%;">Container fails</td><td>probes → Deployment restarts it</td></tr>
+                  <tr><td>Node fails</td><td>HA k3s: etcd quorum + kube-vip survive 1 of 3 nodes; pods rescheduled</td></tr>
+                  <tr><td>Manual drift</td><td>Argo CD self-heal restores Git state</td></tr>
+                  <tr><td>Bad release</td><td><code>git revert</code> → Argo syncs the previous digests</td></tr>
+                  <tr><td>Lost cluster</td><td>rebuild with Ansible → Argo CD re-creates apps from Git</td></tr>
+                </tbody>
+              </table>
+              <p class="tag todo">Not done yet</p>
+              <ul style="margin-top:0;">
+                <li><strong>DB backups:</strong> CronJob <code>pg_dump</code> → off-cluster storage + restore test (or Velero)</li>
+                <li>Postgres PVC is node-local → losing that node loses data until backups exist</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+        <aside class="notes">Dionis · 1:00. Monitoring: Grafana is being set up now — the screenshot will be added. DR: go through the table quickly, then say clearly that database backups are the biggest open gap.</aside>
+      </section>
+
+      <!-- 14. SCORECARD & ROADMAP -->
+      <section id="scorecard">
+        <h2><span class="num">13</span>Status &amp; roadmap</h2>
+        <div class="content" style="padding-top:18px;">
+          <div style="display:grid; grid-template-columns: 1.15fr 1fr; gap: 30px;">
+            <table class="tbl">
+              <tbody>
+                <tr><td>1 · Docker</td><td><span class="tag done">done</span> <span class="text-muted" style="font-size:12pt;">multi-stage, non-root</span></td></tr>
+                <tr><td>2 · Environments</td><td><span class="tag wip">3 configured · prod pending</span></td></tr>
+                <tr><td>3 · Tests</td><td><span class="tag done">done</span> <span class="text-muted" style="font-size:12pt;">unit + API + E2E</span></td></tr>
+                <tr><td>4 · Kubernetes</td><td><span class="tag done">done</span> <span class="text-muted" style="font-size:12pt;">Helm chart: TBD</span></td></tr>
+                <tr><td>5 · CI/CD</td><td><span class="tag done">Phase 1 done</span> <span class="tag wip">Phase 2 next</span></td></tr>
+                <tr><td>6 · IaC</td><td><span class="tag wip">Ansible + JCasC ✓ · Terraform</span></td></tr>
+                <tr><td>7 · Monitoring</td><td><span class="tag wip">in progress</span></td></tr>
+                <tr><td>8 · Security</td><td><span class="tag done">6 areas, blocking gates</span></td></tr>
+                <tr><td>9 · Disaster recovery</td><td><span class="tag wip">no DB backups</span></td></tr>
+                <tr><td>10 · Documentation</td><td><span class="tag wip">README + diagram</span></td></tr>
+              </tbody>
+            </table>
+            <div>
+              <p class="tag info">Roadmap to the final defense</p>
+              <ol class="steps">
+                <li>Phase 2: Git promotion + Argo CD → K2 / K3</li>
+                <li>K1 platform: Jenkins, Argo CD, Prometheus, Grafana</li>
+                <li>Grafana dashboards + alerts</li>
+                <li>Terraform for the Proxmox VMs</li>
+                <li>PostgreSQL backups + restore test</li>
+                <li>Smoke tests after each Argo CD sync</li>
+                <li>cert-manager for TLS</li>
+                <li>README rewrite + architecture diagram</li>
+              </ol>
+            </div>
+          </div>
+        </div>
+        <aside class="notes">Dionis · 1:00. Scorecard top to bottom in one breath, then the roadmap — Phase 2 and the platform cluster come first.</aside>
+      </section>
+
+      <!-- 15. CHALLENGES -->
+      <section id="challenges">
+        <h2><span class="num">14</span>Challenges &amp; lessons learned</h2>
+        <div class="content">
+          <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+            <div class="card wip">
+              <h3><i class="fa-solid fa-ban" style="color:var(--wip);"></i>kube-vip.io blocked by our host</h3>
+              <p style="margin:0;">The install fetched the kube-vip RBAC manifest from <code>kube-vip.io</code> — blocked from our server. We vendored <code>rbac.yaml</code> into the scripts, then into Ansible.<br><strong>Lesson:</strong> no external URLs at install time — pin and vendor.</p>
+            </div>
+            <div class="card wip">
+              <h3><i class="fa-solid fa-gauge-high" style="color:var(--wip);"></i>30+ minute builds</h3>
+              <p style="margin:0;">BuildKit saturated the shared 8 cores; every k8s CI pod started with an empty cache. Now: permanent Docker agents with a persistent build cache.<br><strong>Lesson:</strong> caching matters more than more clusters.</p>
+            </div>
+            <div class="card wip">
+              <h3><i class="fa-solid fa-hard-drive" style="color:var(--wip);"></i>Jenkins disk full</h3>
+              <p style="margin:0;">Builds failed with <code>ENOSPC</code> on minikube → investigation report + runbook.<br><strong>Lesson:</strong> a Running pod ≠ a healthy pipeline.</p>
+            </div>
+            <div class="card wip">
+              <h3><i class="fa-solid fa-bug-slash" style="color:var(--wip);"></i>Security clean-up</h3>
+              <p style="margin:0;">npm 62 → 0 vulns; Jenkins agent 47 High + 1 Critical → 0 by rebuilding tools from pinned sources. Kaniko → BuildKit; k8s agents → Docker agents.<br><strong>Lesson:</strong> scanners must block, not warn.</p>
+            </div>
+          </div>
+        </div>
+        <aside class="notes">Vitalii · 0:45. Tell the kube-vip story briefly — it's a good real-world example. Then hand over to Q&amp;A.</aside>
+      </section>
+
+      <!-- 16. Q&A -->
+      <section id="qa" class="section-divider" data-state="is-section-divider">
+        <h1>Thank you — questions?</h1>
+        <p>Vitalii TYTSKYI · Dionis FRANGU · Tatiana ZAINULLINA</p>
+        <p style="font-size:14pt;"><code>github.com/fastapi-traefik-devops</code></p>
+      </section>
+
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/reveal.js@5.1.0/dist/reveal.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/reveal.js@5.1.0/plugin/notes/notes.js"></script>
+  <script>
+    Reveal.initialize({
+      width: 1280,
+      height: 720,
+      margin: 0,
+      controls: true,
+      progress: true,
+      slideNumber: 'c/t',
+      hash: true,
+      transition: 'slide',
+      center: false,
+      plugins: [ RevealNotes ]
+    });
+  </script>
+</body>
+</html>
