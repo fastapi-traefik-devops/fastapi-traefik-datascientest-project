@@ -11,7 +11,7 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 def main():
-    for folder in ("backend/app", "ci", "scripts"):
+    for folder in ("backend/app", "ci", "scripts", "infra/kind/scripts", "infra/jenkins-host/scripts"):
         for path in (ROOT / folder).rglob("*.py"):
             ast.parse(path.read_text(), filename=str(path))
     for path in (ROOT / "infra/jenkins-host").glob("*.yaml"):
@@ -34,7 +34,7 @@ def main():
         assert re.search(r"@sha256:[0-9a-f]{64}$", image), image
     for line in (ROOT / "infra/jenkins-host/plugins.lock.txt").read_text().splitlines():
         assert not line.startswith("kubernetes:"), "Kubernetes agent plugin is retired"
-    for path in [*list((ROOT / "ci").glob("*.sh")), *list((ROOT / "backend/scripts").glob("*.sh")), *list((ROOT / "scripts").glob("*.sh"))]:
+    for path in [*list((ROOT / "ci").glob("*.sh")), *list((ROOT / "backend/scripts").glob("*.sh")), *list((ROOT / "scripts").glob("*.sh")), *list((ROOT / "infra/kind/scripts").glob("*.sh"))]:
         shell = "bash" if "bash" in path.read_text().splitlines()[0] else "sh"
         subprocess.run([shell, "-n", str(path)], check=True)
     local_compose = ROOT / ".tools/phase1/docker-compose"

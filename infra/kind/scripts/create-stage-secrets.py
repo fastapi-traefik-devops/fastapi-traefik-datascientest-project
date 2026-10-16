@@ -7,7 +7,7 @@ Secrets are distinct from DEV, and backend/database passwords match.
 import base64,json,os,secrets,subprocess,tempfile
 from pathlib import Path
 import yaml
-root=Path(__file__).resolve().parent.parent
+root=Path(__file__).resolve().parents[3]
 out=root/'infra/kind/secrets/app-stage'
 files=[out/f'{name}-secrets.yaml' for name in ('backend','db')]
 if all(p.exists() for p in files):

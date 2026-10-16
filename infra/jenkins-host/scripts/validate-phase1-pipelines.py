@@ -10,7 +10,7 @@ from pathlib import Path
 import urllib.parse
 import urllib.request
 
-ROOT = Path(__file__).resolve().parents[1]
+ROOT = Path(__file__).resolve().parents[3]
 URL = "http://127.0.0.1:8085"
 
 

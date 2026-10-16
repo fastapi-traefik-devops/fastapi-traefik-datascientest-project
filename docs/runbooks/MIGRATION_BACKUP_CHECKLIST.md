@@ -18,7 +18,7 @@
 
 Do not commit private material. `.migration-backup/`, `.tools/`, and `sealed-secrets-key-backup.yaml` are ignored. Existing private PEM in `.migration-backup/` is 0600 within a 0700 directory. Store an additional encrypted/off-host copy of the key; the ignored working copy alone is not disaster recovery. No private key or plaintext secret values were printed.
 
-For another engineer, securely supply the key backup, package-reader registry access and namespace-specific application secrets. Run `scripts/recover-dev-secrets.py` to regenerate encrypted app-dev Secrets from the old ciphertext/key. Restoring the key alone cannot recreate live-only STAGE/registry/TLS credentials.
+For another engineer, securely supply the key backup, package-reader registry access and namespace-specific application secrets. Run `infra/kind/scripts/recover-dev-secrets.py` to regenerate encrypted app-dev Secrets from the old ciphertext/key. Restoring the key alone cannot recreate live-only STAGE/registry/TLS credentials.
 
 Future key export (run against kind, outside a build log):
 
@@ -36,4 +36,4 @@ Export every key after rotation; retain older keys needed by ciphertext. Do not 
 
 Future Jenkins backup: put the controller in quiet mode, wait for running builds, stop the controller for a consistent backup, and archive all of `JENKINS_HOME` (jobs, plugins, credentials.xml, secrets/master.key, secrets/hudson.util.Secret, users, config.xml, build archives). Encrypt the archive and preserve ownership. Credentials require the matching Jenkins encryption files. Restart after backup. No such old backup was found; none was fabricated.
 
-Jenkins follow-up: discovered /home/root-admin/jenkins-values.yaml and cached jenkins-5.9.56.tgz. Preserved copies under ignored .migration-backup/jenkins (0700 directory/0600 files). These recover partial install settings/chart, not JENKINS_HOME, jobs/history/plugin inventory or encrypted credentials. The remaining Docker volume belongs to current kind and was left untouched. See JENKINS_RECOVERY_REPORT.md.
+Jenkins follow-up: discovered /home/root-admin/jenkins-values.yaml and cached jenkins-5.9.56.tgz. Preserved copies under ignored .migration-backup/jenkins (0700 directory/0600 files). These recover partial install settings/chart, not JENKINS_HOME, jobs/history/plugin inventory or encrypted credentials. The remaining Docker volume belongs to current kind and was left untouched. See ../../dev-journal/reports/JENKINS_RECOVERY_REPORT.md.
