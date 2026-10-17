@@ -70,13 +70,15 @@ try:
     assert all(r['health']=='ok' and not r.get('lastError') for r in matched)
     print('Rules API: 200; eight expected alert rules loaded and evaluating successfully')
     _,status=request(am,'/api/v2/status');config=yaml.safe_load(status['config']['original'])
-    assert config['route']['receiver']=='null'
-    assert {r['name'] for r in config['receivers']}=={'null'}
+    assert config['route']['receiver']=='slack'
+    receiver=next(r for r in config['receivers'] if r['name']=='slack')
+    assert receiver['slack_configs'][0]['send_resolved'] is True
+    assert receiver['slack_configs'][0]['api_url_file']=='/etc/alertmanager/secrets/monitoring-slack-webhook/slack-webhook'
     _,alerts=request(am,'/api/v2/alerts')
     _,discovery=request(prom,'/api/v1/alertmanagers')
     assert len(discovery['data']['activeAlertmanagers'])==1
     assert all(float(x['value'][1])==0 for x in query('prometheus_notifications_errors_total'))
-    print('Alertmanager API: 200;',len(alerts),'active alerts; one discovered endpoint; zero notification errors; null receiver (no external delivery)')
+    print('Alertmanager API: 200;',len(alerts),'active alerts; one discovered endpoint; zero notification errors; Slack receiver with resolved notifications enabled')
     secret=json.loads(subprocess.check_output(['kubectl','--context',ctx,'get','secret','monitoring-grafana-admin','-n','monitoring','-o','json']))['data']
     user=base64.b64decode(secret['admin-user']).decode()
     password=base64.b64decode(secret['admin-password']).decode()
