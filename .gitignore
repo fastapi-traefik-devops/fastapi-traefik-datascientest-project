@@ -32,3 +32,6 @@ infra/kind/secrets/
 .ci-output/
 .ci-security/
 frontend/openapi-ts-error-*.log
+
+# macOS Finder metadata
+.DS_Store

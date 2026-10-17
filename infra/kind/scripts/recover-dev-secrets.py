@@ -8,7 +8,7 @@ import base64, json, os, subprocess, tempfile
 from pathlib import Path
 import yaml
 
-root = Path(__file__).resolve().parent.parent
+root = Path(__file__).resolve().parents[3]
 backup = Path(os.environ.get('SEALED_SECRETS_KEY_BACKUP', root / 'sealed-secrets-key-backup.yaml'))
 doc = yaml.safe_load(backup.read_text())
 keys = doc.get('items', [doc])

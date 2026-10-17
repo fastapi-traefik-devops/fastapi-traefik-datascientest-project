@@ -85,7 +85,7 @@ try:
     assert request(graf,'/api/health')[0]==200
     _,ds=request(graf,'/api/datasources/uid/prometheus');assert ds['uid']=='prometheus'
     _,search=request(graf,'/api/search?type=dash-db')
-    docs=yaml.safe_load((Path(__file__).resolve().parent.parent/'monitoring/dashboards/platform.yaml').read_text())['data']
+    docs=yaml.safe_load((Path(__file__).resolve().parents[3]/'monitoring/dashboards/platform.yaml').read_text())['data']
     expected_dashboards=[json.loads(d) for d in docs.values()]
     assert {x['uid'] for x in search}>={d['uid'] for d in expected_dashboards}
     print('Grafana health/datasource/search: 200; four expected dashboard UIDs present')

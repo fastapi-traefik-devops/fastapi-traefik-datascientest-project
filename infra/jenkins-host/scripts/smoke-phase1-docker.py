@@ -7,7 +7,7 @@ import subprocess
 import tarfile
 import time
 
-ROOT = Path(__file__).resolve().parents[1]
+ROOT = Path(__file__).resolve().parents[3]
 AGENT = ["docker", "exec", "host-jenkins-agent", "docker"]
 
 

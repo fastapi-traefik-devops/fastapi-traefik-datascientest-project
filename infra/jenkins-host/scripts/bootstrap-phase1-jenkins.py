@@ -18,7 +18,7 @@ import urllib.request
 import xml.etree.ElementTree as ET
 
 
-ROOT = Path(__file__).resolve().parents[1]
+ROOT = Path(__file__).resolve().parents[3]
 CONFIG = ROOT / "infra/jenkins-host"
 PRIVATE = ROOT / ".jenkins-host"
 COMPOSE = ROOT / ".tools/phase1/docker-compose"

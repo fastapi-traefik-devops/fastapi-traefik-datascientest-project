@@ -3,7 +3,7 @@
 set -euo pipefail
 set +x
 umask 077
-ROOT=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)
+ROOT=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../../.." && pwd)
 export PATH="$ROOT/.tools:$PATH"
 NAME=fastapi-dev
 CONTEXT=kind-fastapi-dev
@@ -125,10 +125,10 @@ if 'jenkins' in containers.lower(): raise SystemExit('Docker Jenkins controller 
 print('Local Jenkins controller/agents absent; monitoring budget excludes CI. Keep Jenkins/builds offline.')
 PYCI
   fi
-  python3 "$ROOT/scripts/check-kind-capacity.py"
+  python3 "$ROOT/infra/kind/scripts/check-kind-capacity.py"
   k annotate -n argocd application/monitoring argocd.argoproj.io/skip-reconcile-
   k patch -n argocd application/monitoring --type=merge -p '{"spec":{"syncPolicy":{"automated":{"enabled":true}}}}'
-  python3 "$ROOT/scripts/watch-kind-monitoring.py"
+  python3 "$ROOT/infra/kind/scripts/watch-kind-monitoring.py"
   k get pods,pvc -n monitoring
   ;;
 *) echo 'Usage: bootstrap-kind.sh {base|dev|stage|monitoring}' >&2; exit 2 ;;

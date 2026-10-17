@@ -32,7 +32,7 @@ Grafana dashboards are provisioned and UI editing is disabled. Grafana storage i
 ## Repeatable validation
 
 ```bash
-python3 scripts/verify-kind-monitoring.py
+python3 infra/kind/scripts/verify-kind-monitoring.py
 ```
 
 The verifier opens temporary loopback forwards, checks every active target and required exporter, generates three rounds of benign GETs to each DEV/STAGE frontend and health endpoint, waits for real finite Traefik latency, checks the eight rules and Alertmanager API/discovery, authenticates to Grafana, compares provisioned panel definitions to source, and queries every panel through both Prometheus and Grafana. Both namespace selections are checked. It closes its own forwards. Close any forwards already occupying ports 19090/19093/13000 before running it.

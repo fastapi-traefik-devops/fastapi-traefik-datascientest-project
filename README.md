@@ -22,7 +22,7 @@
 - ✅ Tests with [Pytest](https://pytest.org).
 - 📞 [Traefik](https://traefik.io) as a reverse proxy / load balancer.
 - 🚢 Deployment instructions using Docker Compose, including how to set up a frontend Traefik proxy to handle automatic HTTPS certificates.
-- 🏭 CI/CD using GitHub Flow, Jenkins, GHCR and Argo CD; see [the operating guide](README-jenkins.md).
+- 🏭 CI/CD using GitHub Flow, Jenkins, GHCR and Argo CD; see [the operating guide](infra/jenkins-host/README.md).
 
 ### Dashboard Login
 
@@ -138,7 +138,7 @@ Before deploying it, make sure you change at least the values for:
 
 You can (and should) pass these as environment variables from secrets.
 
-Read the [deployment.md](./deployment.md) docs for more details.
+Read the [deployment.md](./docs/template/deployment.md) docs for more details.
 
 ### Generate Secret Keys
 
@@ -222,17 +222,17 @@ Frontend docs: [frontend/README.md](./frontend/README.md).
 
 ## Jenkins CI
 
-Phase 1 Jenkins runs in Docker outside Kubernetes. It checks out source, runs backend/frontend tests and security gates, builds both images and publishes immutable full-SHA tags to GHCR through a separate trusted Docker publisher. Setup and local validation: [infra/jenkins-host/README.md](./infra/jenkins-host/README.md). The older GitOps design in [README-jenkins.md](./README-jenkins.md) is historical and deferred.
+Phase 1 Jenkins runs in Docker outside Kubernetes. It checks out source, runs backend/frontend tests and security gates, builds both images and publishes immutable full-SHA tags to GHCR through a separate trusted Docker publisher. Setup and local validation: [infra/jenkins-host/README.md](./infra/jenkins-host/README.md). The older GitOps design in [README-jenkins.md](./dev-journal/reports/README-jenkins.md) is historical and deferred.
 
 ## Deployment
 
-Deployment docs: [deployment.md](./deployment.md).
+Deployment docs: [deployment.md](./docs/template/deployment.md).
 
 ## Kubernetes GitOps
 
 Active manifests live in `deploy/base` and `deploy/overlays/{dev,stage,prod}`.
 Argo CD owns application deployment. Phase 1 Jenkins only builds and publishes images; GitOps changes are deferred to Phase 2. See [Phase 1 Jenkins CI](infra/jenkins-host/README.md) and
-[Argo bootstrap and rollback](deployment.md).
+[Argo bootstrap and rollback](docs/template/deployment.md).
 
 `k8s/` is retained for historical/local reference. Do not apply it alongside the
 active GitOps applications. Its old sealed secrets belong to their original

@@ -1,6 +1,6 @@
 # Argo CD deployment
 
-The production path is [GitHub Flow + Jenkins + GHCR + Argo CD](README-jenkins.md).
+The production path is [GitHub Flow + Jenkins + GHCR + Argo CD](../../infra/jenkins-host/README.md).
 Jenkins never applies application resources. Git `main`, `deploy/overlays/{dev,stage,prod}`,
 is desired state. `k8s/` is a retained legacy example, not an active deployment root.
 Do not apply both manifest trees to the same workload. Compose remains a separate
@@ -38,7 +38,7 @@ are instructions only; no real cluster was changed during implementation.
 
    Provision `backend-secrets`, `db-secrets`, `ghcr-pull-secret`, and `app-tls`
    securely in each namespace. See the exact key/permission table in
-   README-jenkins.md. Use an external secret manager or newly sealed namespace-
+   infra/jenkins-host/README.md. Use an external secret manager or newly sealed namespace-
    specific secrets; never commit generated plaintext YAML. Configure Traefik,
    DNS and valid TLS certificates for real hosts replacing `*.example.com` in
    overlays. The AppProject cannot create Namespaces, Secrets or cluster RBAC.
