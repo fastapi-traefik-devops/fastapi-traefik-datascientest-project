@@ -105,7 +105,7 @@ try:
                     resolved=expr.replace('$namespace',ns)
                     samples=query(resolved)
                     assert samples and any(math.isfinite(float(x['value'][1])) for x in samples),(desired['uid'],panel['title'],ns,'missing/nonfinite data')
-                    body={'queries':[{'refId':'A','expr':resolved,'instant':True,'range':False,'datasource':{'uid':'prometheus','type':'prometheus'},'format':'time_series','intervalMs':60000,'maxDataPoints':100}],'from':'now-5m','to':'now'}
+                    body={'queries':[{'refId':'A','expr':resolved,'instant':True,'range':False,'datasource':{'uid':'prometheus','type':'prometheus'},'format':target.get('format','time_series'),'intervalMs':60000,'maxDataPoints':100}],'from':'now-5m','to':'now'}
                     _,answer=request(graf,'/api/ds/query',body)
                     result=answer['results']['A'];assert not result.get('error'),result
                     assert any(any(values for values in frame.get('data',{}).get('values',[])) for frame in result.get('frames',[])),(desired['uid'],panel['title'])
