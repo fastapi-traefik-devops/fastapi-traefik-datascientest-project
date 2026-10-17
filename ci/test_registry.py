@@ -6,7 +6,7 @@ import unittest
 from unittest.mock import patch
 
 import registry
-from phase1 import STEPS, file_sha
+from phase1 import GATES, RELEASE_GATES, file_sha
 
 
 class RegistryTests(unittest.TestCase):
@@ -17,7 +17,7 @@ class RegistryTests(unittest.TestCase):
         self.sha = "a" * 40
         for component in ("backend", "frontend"):
             (self.directory / f"{component}-ci.tar").write_bytes(component.encode())
-        self.manifest = {"version": 1, "sha": self.sha, "gates": list(set(STEPS) - {"attest"}),
+        self.manifest = {"version": 1, "sha": self.sha, "gates": list(GATES),
                          "archives": {name: file_sha(self.directory / f"{name}-ci.tar") for name in ("backend", "frontend")}}
         self.write()
         (self.directory / "source-sha.txt").write_text(self.sha)
@@ -30,6 +30,23 @@ class RegistryTests(unittest.TestCase):
 
     def test_missing_security_gate_blocks_publication(self):
         self.manifest["gates"].remove("backend-image-security")
+        self.write()
+        with self.assertRaisesRegex(ValueError, "CI gates"):
+            registry.validate(self.directory, self.sha)
+
+    def test_release_profile_attestation_is_publishable(self):
+        self.manifest["gates"] = sorted(RELEASE_GATES)
+        self.write()
+        self.assertEqual(registry.validate(self.directory, self.sha)["sha"], self.sha)
+
+    def test_missing_release_gate_blocks_publication(self):
+        self.manifest["gates"] = sorted(RELEASE_GATES - {"secrets"})
+        self.write()
+        with self.assertRaisesRegex(ValueError, "CI gates"):
+            registry.validate(self.directory, self.sha)
+
+    def test_unknown_gate_name_blocks_publication(self):
+        self.manifest["gates"].append("skipped-everything")
         self.write()
         with self.assertRaisesRegex(ValueError, "CI gates"):
             registry.validate(self.directory, self.sha)

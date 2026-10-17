@@ -23,6 +23,24 @@ STEPS = (
     "frontend-image", "backend-image-smoke", "frontend-image-smoke",
     "backend-image-security", "frontend-image-security", "attest",
 )
+# The 18 gates an attestation can record; "attest" itself and "gitops" are not image gates.
+GATES = tuple(step for step in STEPS if step != "attest")
+PROFILES = {
+    # Pull requests and the nightly run: every gate plus GitOps manifest and CI-script checks.
+    "full": (*GATES, "gitops"),
+    # Merges to main: re-verify the image that gets published and refresh vulnerability data.
+    # Source-level tests already passed on the pull request for the same tree.
+    "release": (
+        "config", "secrets", "backend-dependencies", "frontend-dependencies",
+        "backend-security", "frontend-security", "backend-image", "frontend-image",
+        "backend-image-smoke", "frontend-image-smoke", "backend-image-security",
+        "frontend-image-security", "attest",
+    ),
+}
+# The publisher refuses an attestation that lacks any of these.
+RELEASE_GATES = frozenset(PROFILES["release"]) - {"attest"}
+TEST_REPORTS = {"backend-unit": "backend-unit.xml", "backend-integration": "backend-integration.xml",
+                "frontend-tests": "frontend-tests.xml"}
 
 
 def run(*args: str, **kwargs):
@@ -271,11 +289,18 @@ class CI:
             self.smoke_image(name.removesuffix("-image-smoke"))
         elif name in ("backend-image-security", "frontend-image-security"):
             self.scan_image(name.removesuffix("-image-security"))
+        elif name == "gitops":
+            run("sh", str(self.root / "ci/validate.sh"), cwd=self.root)
+            run("sh", str(self.root / "ci/validate-platform.sh"), cwd=self.root)
+            run("python3", "-B", "-m", "unittest", "discover", "-s", str(self.root / "ci"), "-p", "test_*.py")
         elif name == "attest":
-            required = set(STEPS) - {"attest"}
-            if not required.issubset(self.state["passed"]):
+            if not RELEASE_GATES.issubset(self.state["passed"]):
                 raise RuntimeError("Cannot attest incomplete or failed CI gates")
-            for name_xml in ("backend-unit.xml", "backend-integration.xml", "frontend-tests.xml"):
+            # Record every gate that passed, so a full run still lists all 18.
+            passed = [gate for gate in GATES if gate in self.state["passed"]]
+            for gate, name_xml in TEST_REPORTS.items():
+                if gate not in passed:
+                    continue
                 suites = ET.parse(self.reports / name_xml).getroot()
                 cases = suites.findall(".//testcase")
                 if suites.tag == "testcase":
@@ -289,7 +314,7 @@ class CI:
                 findings = json.loads((self.reports / f"{component}-image-security.json").read_text())
                 if any(result.get("Vulnerabilities") or result.get("Secrets") for result in findings.get("Results", [])):
                     raise RuntimeError(f"Image findings present: {component}")
-            manifest = {"version": 1, "sha": self.sha, "gates": sorted(required), "archives": {}}
+            manifest = {"version": 1, "sha": self.sha, "gates": sorted(passed), "archives": {}}
             for component in ("backend", "frontend"):
                 manifest["archives"][component] = file_sha(self.reports / f"{component}-ci.tar")
             (self.reports / "gates.json").write_text(json.dumps(manifest, indent=2) + "\n")
@@ -324,14 +349,20 @@ class CI:
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("step", choices=[*STEPS, "all", "cleanup"])
+    parser.add_argument("step", choices=[*STEPS, "gitops", "all", "cleanup", "steps"])
+    parser.add_argument("--profile", choices=sorted(PROFILES), default="full",
+                        help="gate set for 'all' and 'steps' (default: full)")
     args = parser.parse_args()
+    if args.step == "steps":
+        # Lets the Jenkinsfile select its stages from the same definition.
+        print("\n".join(PROFILES[args.profile]))
+        return
     ci = CI()
     if args.step == "cleanup":
         ci.clean()
     elif args.step == "all":
         try:
-            for step in STEPS:
+            for step in PROFILES[args.profile]:
                 ci.step(step)
         finally:
             ci.clean()

@@ -10,7 +10,7 @@ import re
 import subprocess
 import tempfile
 
-from phase1 import STEPS, file_sha
+from phase1 import GATES, RELEASE_GATES, file_sha
 
 
 def validate(directory: Path, expected_sha: str) -> dict:
@@ -20,8 +20,9 @@ def validate(directory: Path, expected_sha: str) -> dict:
         raise ValueError("Artifact SHA does not match verified successful Jenkins SCM revision")
     if (directory / "source-sha.txt").read_text().strip() != sha:
         raise ValueError("Conflicting artifact SHA records")
-    required = set(STEPS) - {"attest"}
-    if manifest.get("version") != 1 or set(manifest.get("gates", [])) != required:
+    # A release run attests the artifact gates; a full run adds the source-level tests.
+    gates = set(manifest.get("gates", []))
+    if manifest.get("version") != 1 or not RELEASE_GATES <= gates or not gates <= set(GATES):
         raise ValueError("Missing or unexpected CI gates")
     for component in ("backend", "frontend"):
         if manifest.get("archives", {}).get(component) != file_sha(directory / f"{component}-ci.tar"):
