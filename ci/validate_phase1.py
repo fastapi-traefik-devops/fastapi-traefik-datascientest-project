@@ -16,12 +16,11 @@ def main():
             ast.parse(path.read_text(), filename=str(path))
     for path in (ROOT / "infra/jenkins-host").glob("*.yaml"):
         list(yaml.safe_load_all(path.read_text()))
+    # CI runs in Jenkins; any remaining GitHub workflow must stay read-only.
     for path in (ROOT / ".github/workflows").glob("*.yml"):
         workflow = yaml.load(path.read_text(), Loader=yaml.BaseLoader)
         assert workflow.get("jobs"), f"Workflow has no jobs: {path}"
-    for name in ("generate-client.yml", "lint-backend.yml", "test-backend.yml", "playwright.yml", "test-docker-compose.yml"):
-        workflow = yaml.load((ROOT / ".github/workflows" / name).read_text(), Loader=yaml.BaseLoader)
-        assert workflow["permissions"]["contents"] == "read", name
+        assert workflow.get("permissions", {}).get("contents") == "read", f"Workflow is not read-only: {path}"
     casc = yaml.safe_load((ROOT / "infra/jenkins-host/jenkins.yaml").read_text())
     assert casc["jenkins"]["numExecutors"] == 0
     assert not casc["jenkins"].get("clouds")
