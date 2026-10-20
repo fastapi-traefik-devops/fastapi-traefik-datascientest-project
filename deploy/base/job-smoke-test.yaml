@@ -1,0 +1,110 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: smoke-test
+  annotations:
+    # Runs after every Argo CD sync, once all resources are healthy. A failure marks the sync
+    # as failed; failed Jobs are kept for their logs, successful ones are removed.
+    argocd.argoproj.io/hook: PostSync
+    argocd.argoproj.io/hook-delete-policy: BeforeHookCreation,HookSucceeded
+spec:
+  backoffLimit: 1
+  activeDeadlineSeconds: 300
+  template:
+    spec:
+      restartPolicy: Never
+      automountServiceAccountToken: false
+      imagePullSecrets:
+      - name: ghcr-pull-secret
+      containers:
+      - name: smoke-test
+        # The backend image is pinned to the deployed digest by each overlay and has Python.
+        image: backend:unconfigured
+        env:
+        - name: DOMAIN
+          valueFrom:
+            configMapKeyRef:
+              name: backend-config
+              key: DOMAIN
+        - name: TRAEFIK_HOST
+          value: traefik.traefik.svc.cluster.local
+        - name: BACKEND_URL
+          value: http://backend
+        command:
+        - python
+        - -c
+        - |
+          import json, os, socket, ssl, sys, time, urllib.request
+
+          domain = os.environ["DOMAIN"]
+          traefik = os.environ["TRAEFIK_HOST"]
+          ports = {"http": int(os.environ.get("TRAEFIK_HTTP_PORT", "80")),
+                   "https": int(os.environ.get("TRAEFIK_HTTPS_PORT", "443"))}
+
+          def via_traefik(path, scheme):
+              # Ask Traefik for the environment's host, as a browser would.
+              sock = socket.create_connection((traefik, ports[scheme]), timeout=10)
+              if scheme == "https":  # self-signed or not-yet-issued certificates are fine here
+                  context = ssl.create_default_context()
+                  context.check_hostname = False
+                  context.verify_mode = ssl.CERT_NONE
+                  sock = context.wrap_socket(sock, server_hostname=domain)
+              with sock:
+                  sock.sendall(f"GET {path} HTTP/1.0\r\nHost: {domain}\r\n\r\n".encode())
+                  data = b""
+                  while chunk := sock.recv(65536):
+                      data += chunk
+              head, _, body = data.partition(b"\r\n\r\n")
+              return int(head.split()[1]), body.decode(errors="replace")
+
+          def direct(url):
+              with urllib.request.urlopen(url, timeout=10) as response:
+                  return response.status, response.read().decode(errors="replace")
+
+          def health(status, body):
+              return status == 200 and body.strip() == "true"
+
+          def openapi(status, body):
+              return status == 200 and "/api/v1/utils/health-check/" in json.loads(body).get("paths", {})
+
+          def frontend(status, body):
+              return status == 200 and '<div id="root">' in body
+
+          # HTTP unless this environment's ingress only answers on its TLS router.
+          scheme = "http"
+          try:
+              if via_traefik("/api/v1/utils/health-check/", "http")[0] == 404:
+                  scheme = "https"
+          except OSError:
+              scheme = "https"
+
+          checks = [
+              ("backend service health", lambda: direct(os.environ["BACKEND_URL"] + "/api/v1/utils/health-check/"), health),
+              (f"health via Traefik ({scheme}://{domain})", lambda: via_traefik("/api/v1/utils/health-check/", scheme), health),
+              ("OpenAPI via Traefik", lambda: via_traefik("/api/v1/openapi.json", scheme), openapi),
+              ("frontend via Traefik", lambda: via_traefik("/", scheme), frontend),
+          ]
+          failed = False
+          for name, request, ok in checks:
+              for attempt in range(1, 11):
+                  try:
+                      status, body = request()
+                      if ok(status, body):
+                          print(f"PASS {name}", flush=True)
+                          break
+                      result = f"HTTP {status}"
+                  except Exception as error:
+                      result = f"{type(error).__name__}: {error}"
+                  if attempt == 10:
+                      print(f"FAIL {name}: {result}", flush=True)
+                      failed = True
+                  else:
+                      time.sleep(float(os.environ.get("SMOKE_RETRY_DELAY", "6")))
+          sys.exit(1 if failed else 0)
+        resources:
+          requests:
+            cpu: 20m
+            memory: 64Mi
+          limits:
+            cpu: 200m
+            memory: 128Mi
