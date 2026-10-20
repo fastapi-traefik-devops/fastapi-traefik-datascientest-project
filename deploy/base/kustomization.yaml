@@ -13,4 +13,5 @@ resources:
 - deployment-adminer.yaml
 - service-adminer.yaml
 - job-prestart.yaml
+- job-smoke-test.yaml
 - ingress-app.yaml
