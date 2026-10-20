@@ -1,4 +1,5 @@
-// Trusted, administrator-controlled registry publisher. It never deploys or writes Git.
+// Trusted, administrator-controlled publisher: pushes the verified SHA images to GHCR, then
+// records them for stage with one GitOps commit on main. It never deploys; Argo CD does.
 // The Job DSL loads this local reviewed definition without sandbox; users cannot edit/replay it.
 pipeline {
     agent { label 'registry-publisher' }
@@ -35,6 +36,20 @@ pipeline {
                 lock(resource: 'phase1-ghcr-publish') {
                     withCredentials([usernamePassword(credentialsId: 'ghcr-write', usernameVariable: 'GHCR_USER', passwordVariable: 'GHCR_TOKEN')]) {
                         sh 'python3 /opt/phase1-ci/registry.py artifacts/.ci-output'
+                    }
+                }
+            }
+        }
+        stage('Promote to stage') {
+            steps {
+                // Same lock: promotions are applied in publication order. The fastapi-gitops App
+                // may push to main past the ruleset; promote.py commits only deploy/overlays/stage.
+                lock(resource: 'phase1-ghcr-publish') {
+                    withCredentials([
+                        usernamePassword(credentialsId: 'ghcr-write', usernameVariable: 'GHCR_USER', passwordVariable: 'GHCR_TOKEN'),
+                        usernamePassword(credentialsId: 'gitops-app', usernameVariable: 'GIT_APP_ID', passwordVariable: 'GIT_TOKEN')
+                    ]) {
+                        sh 'sh /opt/phase1-ci/promote-stage.sh'
                     }
                 }
             }
