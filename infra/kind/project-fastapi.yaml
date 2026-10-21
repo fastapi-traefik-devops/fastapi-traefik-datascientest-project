@@ -6,7 +6,7 @@ metadata:
 spec:
   description: FastAPI GitOps environments
   sourceRepos:
-  - https://github.com/fastapi-traefik-devops/fastapi-traefik-datascientest-project.git
+  - https://github.com/fastapi-traefik-devops/fastapi-traefik-liora-application.git
   destinations:
   - server: https://kubernetes.default.svc
     namespace: app-dev

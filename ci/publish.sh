@@ -16,7 +16,7 @@ esac
 ASKPASS
 chmod 700 "$credential_dir/askpass"
 export GIT_ASKPASS="$credential_dir/askpass" GIT_TERMINAL_PROMPT=0
-repo=https://github.com/fastapi-traefik-devops/fastapi-traefik-datascientest-project.git
+repo=https://github.com/fastapi-traefik-devops/fastapi-traefik-liora-application.git
 if [ "$PROMOTION_MODE" = release ]; then
   # Resolve annotated/lightweight tag in a separate data-only clone.
   git clone --quiet --no-checkout "$repo" "$credential_dir/source"

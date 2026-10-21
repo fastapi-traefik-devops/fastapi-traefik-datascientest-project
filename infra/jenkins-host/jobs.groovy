@@ -6,7 +6,7 @@ def secret = { String name -> new File("/run/secrets/${name}").text.trim() }
 // GitHub App credentials have no DSL symbol, so Job DSL names them by class (gitHubAppCredentials)
 // and expects the private key as a Secret. Without an owner, each App uses its only installation.
 def org = 'fastapi-traefik-devops'
-def repo = 'fastapi-traefik-datascientest-project'
+def repo = 'fastapi-traefik-liora-application'
 
 // CI for main and pull requests. The Jenkinsfile comes from the branch, as on slide 10: a branch
 // author can change it, so the CI agent holds no publishing credentials and the trusted/publish

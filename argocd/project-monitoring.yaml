@@ -7,7 +7,7 @@ spec:
   description: DEV/STAGE monitoring platform; no production destinations
   sourceRepos:
   - https://prometheus-community.github.io/helm-charts
-  - https://github.com/fastapi-traefik-devops/fastapi-traefik-datascientest-project.git
+  - https://github.com/fastapi-traefik-devops/fastapi-traefik-liora-application.git
   destinations:
   - namespace: monitoring
     server: https://kubernetes.default.svc
