@@ -5,10 +5,12 @@ pipeline {
         skipDefaultCheckout(true)
         disableConcurrentBuilds()
         disableResume()
+        copyArtifactPermission('/trusted/publish')
         timeout(time: 90, unit: 'MINUTES')
         buildDiscarder(logRotator(numToKeepStr: '20', artifactNumToKeepStr: '2'))
     }
     parameters {
+        booleanParam(name: 'EXPORT_IMAGES', defaultValue: false, description: 'Export tested archives only; never publish or deploy')
         string(name: 'APP_COMMIT', defaultValue: '', description: 'Exact approved application commit')
         string(name: 'SOURCE_BUNDLE', defaultValue: '', description: 'Operator-staged local Git bundle')
     }
@@ -40,6 +42,13 @@ pipeline {
                         stage(gate) { sh "python3 ci/phase1.py ${gate}" }
                     }
                 }
+            }
+        }
+        stage('Export tested images') {
+            when { expression { params.EXPORT_IMAGES } }
+            steps {
+                sh 'python3 ci/phase1.py export-images'
+                archiveArtifacts artifacts: '.ci-output/*-ci.tar,.ci-output/candidate.json,.ci-output/source-sha.txt,.ci-output/*.xml', fingerprint: true
             }
         }
     }

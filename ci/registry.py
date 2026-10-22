@@ -43,8 +43,13 @@ def digest(crane: str, image: str) -> str | None:
     raise RuntimeError("Registry lookup failed; refusing to publish")
 
 
-def publish(directory: Path, expected_sha: str, namespace: str, crane: str = "crane"):
-    manifest = validate(directory, expected_sha)
+def publish(directory: Path, expected_sha: str, namespace: str, crane: str = "crane",
+            mode="release", source_job="", source_build=""):
+    from candidate import validate_candidate
+    if mode not in ("release", "functional"):
+        raise ValueError("Unknown publication mode")
+    manifest = (validate_candidate(directory, expected_sha, source_job, source_build)
+                if mode == "functional" else validate(directory, expected_sha))
     if not re.fullmatch(r"[a-z0-9.-]+(?::[0-9]+)?/[a-z0-9][a-z0-9_./-]*", namespace):
         raise ValueError("Invalid registry namespace")
     results = {}
@@ -69,10 +74,20 @@ def publish(directory: Path, expected_sha: str, namespace: str, crane: str = "cr
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("directory", type=Path)
+    parser.add_argument("--mode", choices=["release", "functional"], default="release")
+    parser.add_argument("--source-job", default="")
+    parser.add_argument("--source-build", default="")
+    parser.add_argument("--validate-only", action="store_true")
     args = parser.parse_args()
     sha = os.environ["EXPECTED_SOURCE_SHA"]
     # Fail before binding/using registry credentials for incomplete artifacts.
-    validate(args.directory, sha)
+    from candidate import validate_candidate
+    if args.mode == "functional":
+        validate_candidate(args.directory, sha, args.source_job, args.source_build)
+    else:
+        validate(args.directory, sha)
+    if args.validate_only:
+        return
     namespace = os.environ.get("REGISTRY_NAMESPACE", "ghcr.io/fastapi-traefik-devops")
     with tempfile.TemporaryDirectory(prefix="phase1-registry-auth-") as auth:
         os.chmod(auth, 0o700)
@@ -87,7 +102,8 @@ def main():
             config = Path(auth) / "config.json"
             if config.exists():
                 config.chmod(0o600)
-            publish(args.directory, sha, namespace)
+            publish(args.directory, sha, namespace, mode=args.mode,
+                    source_job=args.source_job, source_build=args.source_build)
         finally:
             if old is None:
                 os.environ.pop("DOCKER_CONFIG", None)

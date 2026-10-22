@@ -26,7 +26,7 @@ STEPS = (
 # The 18 gates an attestation can record; "attest" itself and "gitops" are not image gates.
 GATES = tuple(step for step in STEPS if step != "attest")
 PROFILES = {
-    # Temporary functional-only checkpoint; deliberately cannot attest or publish.
+    # Functional-only gates. Publication requires a separate explicit candidate export.
     "migration": (
         "config", "backend-dependencies", "backend-lint", "backend-unit",
         "backend-integration", "frontend-dependencies", "frontend-lint",
@@ -343,6 +343,18 @@ class CI:
         }
         (self.reports / "migration-result.json").write_text(json.dumps(manifest, indent=2) + "\n")
 
+    def export_images(self):
+        # Export exactly the runtime images that passed the functional smoke gates.
+        from candidate import write_candidate
+        expected = set(PROFILES["migration"])
+        if not expected <= set(self.state["passed"]):
+            raise RuntimeError("All functional gates must pass before exporting images")
+        for component in ("backend", "frontend"):
+            run("docker", "save", "-o", str(self.reports / f"{component}-ci.tar"),
+                f"phase1/{component}:{self.name}")
+        write_candidate(self.reports, self.sha, self.state["passed"],
+                        os.environ["JOB_NAME"], os.environ["BUILD_NUMBER"])
+
     def clean(self):
         # Only resources with this exact build identifier, never unrelated containers/volumes.
         for suffix in ("tool", "backend", "mail", "db", "backend-smoke", "frontend-smoke"):
@@ -367,7 +379,7 @@ class CI:
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("step", choices=[*STEPS, "gitops", "all", "cleanup", "steps", "migration-report"])
+    parser.add_argument("step", choices=[*STEPS, "gitops", "all", "cleanup", "steps", "migration-report", "export-images"])
     parser.add_argument("--profile", choices=sorted(PROFILES), default="full",
                         help="gate set for 'all' and 'steps' (default: full)")
     args = parser.parse_args()
@@ -378,6 +390,8 @@ def main():
     ci = CI()
     if args.step == "cleanup":
         ci.clean()
+    elif args.step == "export-images":
+        ci.export_images()
     elif args.step == "migration-report":
         ci.migration_report()
     elif args.step == "all":
