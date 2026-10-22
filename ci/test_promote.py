@@ -43,9 +43,10 @@ class PromotionTests(unittest.TestCase):
         promote.git('push', '-q', 'origin', 'main', cwd=work)
         return promote.git('rev-parse', 'HEAD', cwd=work)
 
-    def invoke(self, env='stage', **kwargs):
-        return promote.promote(env, self.sha, self.pair, app_repo=str(self.app),
-                               infra_repo=str(self.infra), validator=self.validator, **kwargs)
+    def invoke(self, env='stage', future=False, **kwargs):
+        with patch.object(promote, 'PROD_ENABLED', future):
+            return promote.promote(env, self.sha, self.pair, app_repo=str(self.app),
+                                   infra_repo=str(self.infra), validator=self.validator, **kwargs)
 
     def show(self, path, branch='main'):
         return promote.git('--git-dir', str(self.infra), 'show', branch + ':' + path)
@@ -129,14 +130,14 @@ class PromotionTests(unittest.TestCase):
         self.invoke()
         self.tag()
         with self.assertRaisesRegex(RuntimeError, 'successful STAGE acceptance'):
-            self.invoke('prod', release='v1.2.0')
+            self.invoke('prod', future=True, release='v1.2.0')
 
     def test_accepted_pair_qualifies_prod_without_build_or_main_write(self):
         result = self.invoke()
         promote.record_acceptance(self.receipt(result), str(self.infra))
         self.tag()
         before = self.head()
-        prod = self.invoke('prod', release='v1.2.0')
+        prod = self.invoke('prod', future=True, release='v1.2.0')
         self.assertEqual(prod['status'], 'review-required')
         self.assertEqual(self.head(), before)
         self.assertEqual(json.loads(self.show(promote.OVERLAYS + '/prod/promotion.json', prod['branch']))['digests'], self.pair)
@@ -151,7 +152,7 @@ class PromotionTests(unittest.TestCase):
         promote.record_acceptance(record, str(self.infra))
         self.tag()
         with self.assertRaisesRegex(RuntimeError, 'successful STAGE acceptance'):
-            self.invoke('prod', release='v1.2.0')
+            self.invoke('prod', future=True, release='v1.2.0')
 
     def test_receipt_for_other_pair_or_revision_rejected(self):
         result = self.invoke()
@@ -173,12 +174,19 @@ class PromotionTests(unittest.TestCase):
         files = promote.git('--git-dir', str(self.infra), 'ls-tree', '-r', '--name-only', 'main').splitlines()
         self.assertNotIn(promote.OVERLAYS + '/stage/acceptance.json', files)
 
+    def test_initial_checkpoint_blocks_prod_even_with_accepted_fixture(self):
+        result = self.invoke()
+        promote.record_acceptance(self.receipt(result), str(self.infra))
+        self.tag()
+        with self.assertRaisesRegex(RuntimeError, 'PROD is blocked'):
+            self.invoke('prod', release='v1.2.0')
+
     def test_release_tag_must_match_application_sha(self):
         self.tag()
         (self.aw / 'source').write_text('new')
         self.sha = self.save(self.aw)
         with self.assertRaisesRegex(RuntimeError, 'Release tag'):
-            self.invoke('prod', release='v1.2.0')
+            self.invoke('prod', future=True, release='v1.2.0')
 
 
 if __name__ == '__main__':

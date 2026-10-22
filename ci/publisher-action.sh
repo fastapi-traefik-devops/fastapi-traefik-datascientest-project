@@ -21,10 +21,11 @@ if [ "${1:-}" = accept-stage ]; then
     exit "$exec_status"
 fi
 : "${EXPECTED_SOURCE_SHA:?}" "${GHCR_USER:?}" "${GHCR_TOKEN:?}"
-case "${ACTION:?}" in publish-only|stage|dev|prod) ;; *) exit 1 ;; esac
+case "${ACTION:?}" in publish-only|stage) ;; *) exit 1 ;; esac
 if [ "$ACTION" = stage ]; then
     # Skip obsolete candidates before publication as well as immediately before Git writes.
-    latest=$(git ls-remote --exit-code https://github.com/fastapi-traefik-devops/fastapi-traefik-liora-application.git refs/heads/main | cut -f1)
+    latest=$(git ls-remote --exit-code https://github.com/fastapi-traefik-devops/fastapi-traefik-liora-application.git refs/heads/main)
+    latest=$(printf '%s\n' "$latest" | cut -f1)
     if [ "$latest" != "$EXPECTED_SOURCE_SHA" ]; then
         printf '{"status":"superseded"}\n' > stage-request.json
         exit 0
@@ -33,9 +34,7 @@ fi
 export DOCKER_CONFIG="$credentials/docker"
 mkdir -p "$DOCKER_CONFIG"
 # Registry Python authenticates and removes its own private config for publication.
-if [ "$ACTION" != prod ]; then
-    python3 "$helpers/registry.py" artifacts/.ci-output --mode functional --source-job "$SOURCE_JOB" --source-build "$CI_BUILD"
-fi
+python3 "$helpers/registry.py" artifacts/.ci-output --mode functional --source-job "$SOURCE_JOB" --source-build "$CI_BUILD"
 [ "$ACTION" != publish-only ] || exit 0
 printf '%s' "$GHCR_TOKEN" | crane auth login ghcr.io -u "$GHCR_USER" --password-stdin >/dev/null 2>&1
 python3 "$helpers/promote.py" "$ACTION" "$EXPECTED_SOURCE_SHA" --release "${RELEASE_TAG:-}"

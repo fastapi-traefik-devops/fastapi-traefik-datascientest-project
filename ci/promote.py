@@ -13,6 +13,8 @@ APPLICATION_REPO = 'https://github.com/fastapi-traefik-devops/fastapi-traefik-li
 INFRASTRUCTURE_REPO = 'https://github.com/fastapi-traefik-devops/fastapi-traefik-liora-infrastructure.git'
 REGISTRY = 'ghcr.io/fastapi-traefik-devops/fastapi-'
 OVERLAYS = 'kubernetes/apps/liora/overlays'
+# Flip only in a reviewed change after the agreed acceptance gate is live-verified.
+PROD_ENABLED = False
 COMPONENTS = ('backend', 'frontend')
 STAGE_FILES = {f'{OVERLAYS}/stage/{n}' for n in ('kustomization.yaml', 'promotion.json', 'acceptance.json')}
 
@@ -105,6 +107,8 @@ def prepare(directory):
 def promote(environment, sha, digests, release='', app_repo=APPLICATION_REPO,
             infra_repo=INFRASTRUCTURE_REPO, validator=None):
     source_valid(sha)
+    if environment == 'prod' and not PROD_ENABLED:
+        raise RuntimeError('PROD is blocked until STAGE acceptance is implemented and live-verified')
     if not pair_valid(digests):
         raise ValueError('Both immutable image digests are required')
     if environment not in ('dev', 'stage', 'prod'):
@@ -215,6 +219,8 @@ def main():
     if args.environment == 'accept-stage':
         record_acceptance(json.loads(Path(args.source).read_text()))
         return
+    if args.environment == 'prod' and not PROD_ENABLED:
+        raise RuntimeError('PROD is blocked until STAGE acceptance is implemented and live-verified')
     digests = {n: run('crane', 'digest', f'{REGISTRY}{n}:sha-{args.source}') for n in COMPONENTS}
     result = promote(args.environment, args.source, digests, args.release)
     Path(args.output).write_text(json.dumps(result, indent=2) + '\n')

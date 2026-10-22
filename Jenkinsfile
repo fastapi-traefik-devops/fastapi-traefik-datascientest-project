@@ -8,7 +8,9 @@ pipeline {
         buildDiscarder(logRotator(numToKeepStr: '20', artifactNumToKeepStr: '2'))
         copyArtifactPermission('/trusted/publish')
     }
-    // No polling or schedule is installed by this definition.
+    // Prepared only: after approval, poll the existing main job without webhooks.
+    // Keep recurring multibranch indexing and every imported PR job disabled.
+    triggers { pollSCM(env.BRANCH_NAME == 'main' ? 'H/2 * * * *' : '') }
     stages {
         stage('Checkout') {
             steps {

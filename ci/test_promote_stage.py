@@ -48,8 +48,8 @@ print('promote ' + ' '.join(sys.argv[1:]))
         self.assertNotIn('validated candidate', output)
         self.assertNotIn('promote stage', output)
 
-    def test_prod_does_not_publish_or_rebuild(self):
+    def test_prod_is_blocked_without_publication_or_rebuild(self):
         status, output = self.invoke(action='prod')
-        self.assertEqual(status, 0)
+        self.assertNotEqual(status, 0)
         self.assertNotIn('validated candidate', output)
-        self.assertIn('promote prod', output)
+        self.assertNotIn('promote prod', output)
