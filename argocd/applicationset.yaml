@@ -16,7 +16,7 @@ spec:
     spec:
       project: fastapi
       source:
-        repoURL: https://github.com/fastapi-traefik-devops/fastapi-traefik-datascientest-project.git
+        repoURL: https://github.com/fastapi-traefik-devops/fastapi-traefik-liora-application.git
         targetRevision: main
         path: 'deploy/overlays/{{environment}}'
       destination:

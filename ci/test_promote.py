@@ -98,6 +98,26 @@ class PromotionTests(unittest.TestCase):
         self.assertEqual(self.show('main', 'notes.md'), 'Concurrent human update')
         self.assertEqual(json.loads(self.show('main', 'deploy/overlays/stage/promotion.json'))['sha'], self.sha)
 
+    def test_rejected_push_fails_without_retry(self):
+        # Like a GH013 ruleset rejection: the remote declines every push to main.
+        hook = self.remote / 'hooks' / 'pre-receive'
+        hook.write_text('#!/bin/sh\necho "GH013: Repository rule violations found" >&2\nexit 1\n')
+        hook.chmod(0o755)
+        pushes = 0
+
+        def count(args, *a, **kw):
+            nonlocal pushes
+            if args[:3] == ['git', 'push', 'origin']:
+                pushes += 1
+            return REAL_RUN(args, *a, **kw)
+
+        with patch.object(subprocess, 'run', side_effect=count), \
+                contextlib.redirect_stderr(io.StringIO()), \
+                self.assertRaisesRegex(RuntimeError, 'ruleset bypass'):
+            self.invoke('stage')
+        self.assertEqual(pushes, 1)
+        self.assertEqual(promote.git('--git-dir', str(self.remote), 'rev-parse', 'main'), self.sha)
+
     def test_missing_images_fail_before_git_write(self):
         self.registry.clear()
         with self.assertRaises(KeyError):

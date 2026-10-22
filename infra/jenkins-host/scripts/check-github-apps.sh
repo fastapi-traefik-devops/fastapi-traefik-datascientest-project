@@ -5,7 +5,7 @@
 set -eu
 root=$(cd -- "$(dirname -- "$0")/../../.." && pwd)
 secrets="${SECRETS_DIR:-$root/.jenkins-host/secrets}"  # override when run from another checkout
-repo=fastapi-traefik-devops/fastapi-traefik-datascientest-project
+repo=fastapi-traefik-devops/fastapi-traefik-liora-application
 api=https://api.github.com
 
 b64url() { openssl base64 -A | tr '+/' '-_' | tr -d '='; }

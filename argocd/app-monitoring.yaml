@@ -15,10 +15,10 @@ spec:
       releaseName: monitoring
       valueFiles:
       - $values/monitoring/values.yaml
-  - repoURL: https://github.com/fastapi-traefik-devops/fastapi-traefik-datascientest-project.git
+  - repoURL: https://github.com/fastapi-traefik-devops/fastapi-traefik-liora-application.git
     targetRevision: main
     ref: values
-  - repoURL: https://github.com/fastapi-traefik-devops/fastapi-traefik-datascientest-project.git
+  - repoURL: https://github.com/fastapi-traefik-devops/fastapi-traefik-liora-application.git
     targetRevision: main
     path: monitoring
   destination:

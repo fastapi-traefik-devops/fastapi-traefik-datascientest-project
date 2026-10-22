@@ -5,9 +5,10 @@ import json
 from pathlib import Path
 import re
 import subprocess
+import sys
 import tempfile
 
-REPO = 'https://github.com/fastapi-traefik-devops/fastapi-traefik-datascientest-project.git'
+REPO = 'https://github.com/fastapi-traefik-devops/fastapi-traefik-liora-application.git'
 REGISTRY = 'ghcr.io/fastapi-traefik-devops/fastapi-'
 
 
@@ -121,9 +122,15 @@ def main():
                 git('push', 'origin', f'HEAD:refs/heads/{branch}', cwd=directory)
                 print(f'Open reviewed PR: {REPO.removesuffix(".git")}/compare/main...{branch}')
                 return
-            result = subprocess.run(['git', 'push', 'origin', 'HEAD:refs/heads/main'], cwd=directory)
+            result = subprocess.run(['git', 'push', 'origin', 'HEAD:refs/heads/main'], cwd=directory,
+                                    capture_output=True, text=True)
+            sys.stderr.write(result.stderr)
             if result.returncode == 0:
                 return
+            # Only a concurrent commit on main is worth a retry; a ruleset or permission
+            # rejection (e.g. GH013, missing bypass) fails the same way every time.
+            if 'fetch first' not in result.stderr and 'non-fast-forward' not in result.stderr:
+                raise RuntimeError('Push to main rejected; check the fastapi-gitops ruleset bypass')
         raise RuntimeError('Main advanced repeatedly; rerun promotion')
 
 
