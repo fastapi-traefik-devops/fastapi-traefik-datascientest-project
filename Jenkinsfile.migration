@@ -48,30 +48,21 @@ pipeline {
             script {
                 try {
                     if (fileExists('ci/phase1.py')) {
-                        sh '''python3 - <<'PYRESULT'
-import json
-import sys
-sys.path.insert(0, 'ci')
-from phase1 import CI, PROFILES, STEPS
-ci = CI()
-(ci.reports / 'migration-result.json').write_text(json.dumps({
-    'profile': 'migration', 'sha': ci.sha, 'passed': ci.state['passed'],
-    'expected': PROFILES['migration'],
-    'deferred': [s for s in (*STEPS, 'gitops') if s not in PROFILES['migration']],
-    'publishable': False,
-}, indent=2) + '\n')
-PYRESULT'''
-                    }
-                    for (report in ['backend-unit', 'backend-integration', 'frontend-tests']) {
-                        if (fileExists(".ci-output/${report}.xml")) { junit ".ci-output/${report}.xml" }
+                        sh 'python3 ci/phase1.py migration-report'
                     }
                 } finally {
                     try {
-                        archiveArtifacts artifacts: '.ci-output/*.json,.ci-output/*.xml', allowEmptyArchive: true
+                        for (report in ['backend-unit', 'backend-integration', 'frontend-tests']) {
+                            if (fileExists(".ci-output/${report}.xml")) { junit ".ci-output/${report}.xml" }
+                        }
                     } finally {
                         try {
-                            if (fileExists('ci/phase1.py')) { sh 'python3 ci/phase1.py cleanup' }
-                        } finally { deleteDir() }
+                            archiveArtifacts artifacts: '.ci-output/*.json,.ci-output/*.xml', allowEmptyArchive: true
+                        } finally {
+                            try {
+                                if (fileExists('ci/phase1.py')) { sh 'python3 ci/phase1.py cleanup' }
+                            } finally { deleteDir() }
+                        }
                     }
                 }
             }

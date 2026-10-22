@@ -67,6 +67,18 @@ class AttestTests(unittest.TestCase):
         self.ci.step("attest")
         return json.loads((self.ci.reports / "gates.json").read_text())
 
+    def test_migration_report_keeps_incomplete_and_deferred_steps_explicit(self):
+        self.ci.state["passed"] = list(PROFILES["migration"][:3])
+        self.ci.migration_report()
+        report = json.loads((self.ci.reports / "migration-result.json").read_text())
+        self.assertEqual(report["sha"], self.ci.sha)
+        self.assertEqual(report["passed"], list(PROFILES["migration"][:3]))
+        self.assertEqual(report["not_completed"], list(PROFILES["migration"][3:]))
+        self.assertIn("attest", report["deferred"])
+        self.assertIn("gitops", report["deferred"])
+        self.assertFalse(report["publishable"])
+        self.assertFalse((self.ci.reports / "gates.json").exists())
+
     def test_release_run_attests_release_gates(self):
         manifest = self.attest_after(RELEASE_GATES)
         self.assertEqual(set(manifest["gates"]), RELEASE_GATES)

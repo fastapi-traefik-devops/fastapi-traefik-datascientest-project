@@ -22,3 +22,7 @@ JUnit/coverage reports and `migration-result.json` record actual outcomes and
 deferred gates. This is not release evidence: no `gates.json`, image tarballs,
 publication, promotion or deployment is produced. A failure ends this checkpoint;
 retry and later automation require a separate operator decision.
+
+The manual Pipeline generates its result through `python3 ci/phase1.py migration-report`.
+This records incomplete functional steps separately from deferred checks; XML
+collection, archiving and cleanup also run if result generation fails.

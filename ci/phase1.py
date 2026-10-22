@@ -332,6 +332,17 @@ class CI:
             self.state["passed"].append(name)
         self.state_file.write_text(json.dumps(self.state))
 
+    def migration_report(self):
+        expected = PROFILES["migration"]
+        manifest = {
+            "profile": "migration", "sha": self.sha, "passed": self.state["passed"],
+            "expected": expected,
+            "not_completed": [step for step in expected if step not in self.state["passed"]],
+            "deferred": [step for step in (*STEPS, "gitops") if step not in expected],
+            "publishable": False,
+        }
+        (self.reports / "migration-result.json").write_text(json.dumps(manifest, indent=2) + "\n")
+
     def clean(self):
         # Only resources with this exact build identifier, never unrelated containers/volumes.
         for suffix in ("tool", "backend", "mail", "db", "backend-smoke", "frontend-smoke"):
@@ -356,7 +367,7 @@ class CI:
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("step", choices=[*STEPS, "gitops", "all", "cleanup", "steps"])
+    parser.add_argument("step", choices=[*STEPS, "gitops", "all", "cleanup", "steps", "migration-report"])
     parser.add_argument("--profile", choices=sorted(PROFILES), default="full",
                         help="gate set for 'all' and 'steps' (default: full)")
     args = parser.parse_args()
@@ -367,6 +378,8 @@ def main():
     ci = CI()
     if args.step == "cleanup":
         ci.clean()
+    elif args.step == "migration-report":
+        ci.migration_report()
     elif args.step == "all":
         try:
             for step in PROFILES[args.profile]:
