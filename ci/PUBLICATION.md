@@ -7,8 +7,10 @@ No security scans are added or run in this educational migration increment.
 The regular Jenkinsfile runs all 13 existing functional gates on the resulting
 checked-out main commit, exports those exact runtime images, and requests the
 trusted publisher only for main. PR builds do not export/publish. The prepared
-main Jenkinsfile uses one SCM poll (`H/2 * * * *`), with no nightly cron, webhook
-or recurring multibranch indexing. This trigger is NOT installed live. `Jenkinsfile.migration` retains the inert
+main job uses one SCM poll (`H/2 * * * *`), with no nightly cron, webhook
+or recurring multibranch indexing. The operator installs it in the existing job
+configuration only after the first controlled live cycle passes; the Jenkinsfile
+does not enable it during that first run. `Jenkinsfile.migration` retains the inert
 manual build by default;
 `EXPORT_IMAGES=true` is an explicit archive-only checkpoint, with no publication.
 Old build #2 cannot qualify: it has neither archives nor the candidate contract.

@@ -8,9 +8,9 @@ pipeline {
         buildDiscarder(logRotator(numToKeepStr: '20', artifactNumToKeepStr: '2'))
         copyArtifactPermission('/trusted/publish')
     }
-    // Prepared only: after approval, poll the existing main job without webhooks.
-    // Keep recurring multibranch indexing and every imported PR job disabled.
-    triggers { pollSCM(env.BRANCH_NAME == 'main' ? 'H/2 * * * *' : '') }
+    // The operator installs the main job's SCM poll only after the first live
+    // cycle passes. Keep trigger ownership in job configuration so this first
+    // controlled run cannot enable polling early. No cron or folder indexing.
     stages {
         stage('Checkout') {
             steps {
