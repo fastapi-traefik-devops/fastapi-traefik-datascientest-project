@@ -1,73 +1,101 @@
-// Trusted, administrator-controlled publisher: pushes the verified SHA images to GHCR, then
-// records them for stage with one GitOps commit on main. It never deploys; Argo CD does.
-// The Job DSL loads this local reviewed definition without sandbox; users cannot edit/replay it.
+// Trusted definition and /opt/phase1-ci helpers must be installed from reviewed pins.
+// Prepared locally only: do not enable this job without the next live approval.
 pipeline {
     agent { label 'registry-publisher' }
     options {
         skipDefaultCheckout(true)
         disableConcurrentBuilds()
-        timeout(time: 30, unit: 'MINUTES')
+        timeout(time: 60, unit: 'MINUTES')
         buildDiscarder(logRotator(numToKeepStr: '30'))
     }
-    parameters { string(name: 'CI_BUILD', defaultValue: '', description: 'Exact app-ci/main build number with successful CI gates') }
+    parameters {
+        choice(name: 'ACTION', choices: ['publish-only', 'stage', 'dev', 'prod'], description: 'DEV/PROD are manual; PROD never rebuilds')
+        choice(name: 'SOURCE_JOB', choices: ['migration-ci', 'app-ci/main'], description: 'Allowlisted successful source')
+        string(name: 'CI_BUILD', defaultValue: '', description: 'Exact successful candidate build; not used for PROD')
+        string(name: 'APP_SHA', defaultValue: '', description: 'PROD: exact STAGE-accepted application SHA')
+        string(name: 'RELEASE_TAG', defaultValue: '', description: 'PROD: immutable application vX.Y.Z tag')
+    }
     environment { REGISTRY_NAMESPACE = 'ghcr.io/fastapi-traefik-devops' }
     stages {
-        stage('Verify source CI status') {
+        stage('Verify source evidence') {
             steps {
                 script {
-                    if (!(params.CI_BUILD ==~ /[1-9][0-9]*/)) { error('Exact CI build number required') }
-                    def source
-                    waitUntil(initialRecurrencePeriod: 5000) {
-                        source = sourceBuild(params.CI_BUILD)
-                        if (!source.exists) { error('Source CI build does not exist') }
-                        return !source.building
+                    if (!(params.ACTION in ['publish-only', 'stage', 'dev', 'prod'])) { error('Unknown action') }
+                    if (params.ACTION == 'prod') {
+                        if (!(params.APP_SHA ==~ /[0-9a-f]{40}/) || !(params.RELEASE_TAG ==~ /v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)/)) {
+                            error('Exact PROD SHA and release tag required')
+                        }
+                        env.EXPECTED_SOURCE_SHA = params.APP_SHA
+                    } else {
+                        if (!(params.SOURCE_JOB in ['migration-ci', 'app-ci/main']) || !(params.CI_BUILD ==~ /[1-9][0-9]*/)) {
+                            error('Allowlisted job and exact build number required')
+                        }
+                        if (params.ACTION == 'stage' && params.SOURCE_JOB != 'app-ci/main') { error('Automatic STAGE requires application main CI') }
+                        def source
+                        waitUntil(initialRecurrencePeriod: 5000) {
+                            source = sourceBuild(params.SOURCE_JOB, params.CI_BUILD)
+                            if (!source.exists) { error('Source build does not exist') }
+                            return !source.building
+                        }
+                        if (!source.exists || source.building || source.result != 'SUCCESS' || !(source.revision ==~ /[0-9a-f]{40}/)) {
+                            error('Completed successful source CI with exact revision required')
+                        }
+                        env.EXPECTED_SOURCE_SHA = source.revision
+                        copyArtifacts projectName: params.SOURCE_JOB, selector: specific(params.CI_BUILD),
+                            filter: '.ci-output/*-ci.tar,.ci-output/candidate.json,.ci-output/source-sha.txt,.ci-output/*.xml',
+                            target: 'artifacts', fingerprintArtifacts: true
+                        sh 'python3 /opt/phase1-ci/registry.py artifacts/.ci-output --mode functional --source-job "$SOURCE_JOB" --source-build "$CI_BUILD" --validate-only'
                     }
-                    if (source.result != 'SUCCESS') { error('Source CI build must be SUCCESS') }
-                    def revision = source.revision
-                    if (!(revision ==~ /[0-9a-f]{40}/)) { error('Verified SCM revision required') }
-                    env.EXPECTED_SOURCE_SHA = revision
-                    copyArtifacts projectName: 'app-ci/main', selector: specific(params.CI_BUILD),
-                        filter: '.ci-output/*-ci.tar,.ci-output/gates.json,.ci-output/source-sha.txt', target: 'artifacts', fingerprintArtifacts: true
                 }
             }
         }
-        stage('Publish immutable SHA images') {
+        stage('Serialized publication and promotion') {
             steps {
-                lock(resource: 'phase1-ghcr-publish') {
-                    withCredentials([usernamePassword(credentialsId: 'ghcr-write', usernameVariable: 'GHCR_USER', passwordVariable: 'GHCR_TOKEN')]) {
-                        sh 'python3 /opt/phase1-ci/registry.py artifacts/.ci-output'
-                    }
-                }
-            }
-        }
-        stage('Promote to stage') {
-            steps {
-                // Same lock: promotions are applied in publication order. The fastapi-gitops App
-                // may push to main past the ruleset; promote.py commits only deploy/overlays/stage.
-                lock(resource: 'phase1-ghcr-publish') {
-                    withCredentials([
-                        usernamePassword(credentialsId: 'ghcr-write', usernameVariable: 'GHCR_USER', passwordVariable: 'GHCR_TOKEN'),
-                        usernamePassword(credentialsId: 'gitops-app', usernameVariable: 'GIT_APP_ID', passwordVariable: 'GIT_TOKEN')
-                    ]) {
-                        sh 'sh /opt/phase1-ci/promote-stage.sh'
+                lock(resource: 'liora-stage-promotion') {
+                    script {
+                        // A single lock spans the direct commit, observation and evidence commit.
+                        withCredentials([
+                            usernamePassword(credentialsId: 'ghcr-write', usernameVariable: 'GHCR_USER', passwordVariable: 'GHCR_TOKEN'),
+                            usernamePassword(credentialsId: 'gitops-app', usernameVariable: 'GIT_APP_ID', passwordVariable: 'GIT_TOKEN')
+                        ]) {
+                            sh 'sh /opt/phase1-ci/publisher-action.sh'
+                        }
+                        if (params.ACTION == 'stage' && readJSON(file: 'stage-request.json').status == 'promoted') {
+                            stash name: 'stage-request', includes: 'stage-request.json'
+                            node('stage-observer') {
+                                deleteDir()
+                                try {
+                                    unstash 'stage-request'
+                                    // No publisher credentials are in scope on this read-only agent.
+                                    sh returnStatus: true, script: 'python3 /opt/phase1-ci/stage_acceptance.py --request stage-request.json --output stage-acceptance.json'
+                                    archiveArtifacts artifacts: 'stage-acceptance.json', fingerprint: true
+                                    stash name: 'stage-acceptance', includes: 'stage-acceptance.json'
+                                } finally { deleteDir() }
+                            }
+                            unstash 'stage-acceptance'
+                            withCredentials([usernamePassword(credentialsId: 'gitops-app', usernameVariable: 'GIT_APP_ID', passwordVariable: 'GIT_TOKEN')]) {
+                                sh 'sh /opt/phase1-ci/publisher-action.sh accept-stage'
+                            }
+                            if (readJSON(file: 'stage-acceptance.json').status != 'accepted') {
+                                error('STAGE acceptance failed; PROD blocked, rollback remains manual')
+                            }
+                        }
                     }
                 }
             }
         }
     }
     post {
-        success { archiveArtifacts artifacts: 'artifacts/.ci-output/published-images.json', fingerprint: true }
-        // cleanup runs after success, so the publication record is archived first.
+        always { archiveArtifacts artifacts: 'artifacts/.ci-output/published-images.json,stage-request.json,stage-acceptance.json', allowEmptyArchive: true, fingerprint: true }
         cleanup { deleteDir() }
     }
 }
 
-// Jenkins model objects (WorkflowRun) cannot be serialized, and waitUntil checkpoints the
-// pipeline between polls. Read the build here and keep only plain values in pipeline state.
 @NonCPS
-def sourceBuild(String number) {
-    def run = jenkins.model.Jenkins.get().getItemByFullName('app-ci/main')?.getBuildByNumber(number.toInteger())
+def sourceBuild(String job, String number) {
+    def run = jenkins.model.Jenkins.get().getItemByFullName(job)?.getBuildByNumber(number.toInteger())
     if (run == null) { return [exists: false] }
-    return [exists: true, building: run.isBuilding(), result: run.getResult()?.toString(),
-            revision: run.getAction(hudson.plugins.git.util.BuildData)?.getLastBuiltRevision()?.getSha1String()]
+    def revision = job == 'migration-ci' ? run.getAction(hudson.model.ParametersAction)?.getParameter('APP_COMMIT')?.getValue() :
+        run.getAction(hudson.plugins.git.util.BuildData)?.getLastBuiltRevision()?.getSha1String()
+    return [exists: true, building: run.isBuilding(), result: run.getResult()?.toString(), revision: revision]
 }
