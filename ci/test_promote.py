@@ -1,20 +1,13 @@
-"""Exercise Git promotion against a temporary bare remote; never contact GitHub/GHCR."""
-import contextlib
-import io
+"""Independent application/infrastructure bare remotes; no GitHub/GHCR calls."""
 import json
 from pathlib import Path
-import re
-import shutil
 import subprocess
-import sys
 import tempfile
 import unittest
 from unittest.mock import patch
-
 import promote
 
 REAL_RUN = subprocess.run
-ROOT = Path(__file__).resolve().parents[1]
 
 
 class PromotionTests(unittest.TestCase):
@@ -22,166 +15,170 @@ class PromotionTests(unittest.TestCase):
         self.temp = tempfile.TemporaryDirectory()
         self.addCleanup(self.temp.cleanup)
         self.root = Path(self.temp.name)
-        self.remote = self.root / 'remote.git'
-        self.work = self.root / 'work'
-        promote.git('init', '--bare', '--initial-branch=main', str(self.remote))
-        promote.git('clone', str(self.remote), str(self.work))
-        promote.git('config', 'user.email', 'test@example.com', cwd=self.work)
-        promote.git('config', 'user.name', 'Test', cwd=self.work)
-        shutil.copytree(ROOT / 'deploy', self.work / 'deploy')
-        # Fixtures must not inherit real environment promotion history/digests.
-        for overlay in (self.work / 'deploy/overlays').iterdir():
-            (overlay / 'promotion.json').unlink(missing_ok=True)
-            path = overlay / 'kustomization.yaml'
-            content = re.sub(r'^  digest: .*\n', '', path.read_text(), flags=re.M)
-            content = re.sub(r'^  newTag: .*$', '  newTag: sha-' + '0' * 40, content, flags=re.M)
-            path.write_text(content)
-        (self.work / 'source.py').write_text('version = 1\n')
-        self.sha = self.commit('Initial application')
-        self.digests = {n: 'sha256:' + c * 64 for n, c in [('backend', 'a'), ('frontend', 'b')]}
-        self.registry = {f'{promote.REGISTRY}{n}:sha-{self.sha}': d for n, d in self.digests.items()}
-        self.addCleanup(patch.stopall)
-        patch.object(promote, 'REPO', str(self.remote)).start()
-        patch.object(promote, 'digest', side_effect=lambda image: self.registry[image]).start()
+        self.app, self.aw = self.repository('application')
+        self.infra, self.iw = self.repository('infrastructure')
+        (self.aw / 'source').write_text('first')
+        self.sha = self.save(self.aw)
+        for env in ('dev', 'stage', 'prod'):
+            directory = self.iw / promote.OVERLAYS / env
+            directory.mkdir(parents=True)
+            (directory / 'kustomization.yaml').write_text('images:\n' + ''.join(
+                f'- name: {n}\n  newName: {promote.REGISTRY}{n}\n  newTag: unconfigured\n' for n in promote.COMPONENTS))
+        self.base = self.save(self.iw)
+        self.pair = {n: 'sha256:' + c * 64 for n, c in [('backend', 'a'), ('frontend', 'b')]}
+        self.validator = self.root / 'validate.sh'
+        self.validator.write_text('#!/bin/sh\nexit 0\n')
 
-    def commit(self, message):
-        promote.git('add', '.', cwd=self.work)
-        promote.git('commit', '-qm', message, cwd=self.work)
-        promote.git('push', '-q', 'origin', 'main', cwd=self.work)
-        return promote.git('rev-parse', 'HEAD', cwd=self.work)
+    def repository(self, name):
+        remote, work = self.root / (name + '.git'), self.root / name
+        promote.git('init', '--bare', '--initial-branch=main', str(remote))
+        promote.git('clone', str(remote), str(work))
+        promote.git('config', 'user.name', 'Fixture', cwd=work)
+        promote.git('config', 'user.email', 'fixture@example.invalid', cwd=work)
+        return remote, work
 
-    def invoke(self, environment, sha=None, release=None):
-        argv = ['promote.py', environment, sha or self.sha]
-        if release:
-            argv += ['--release', release]
-        with patch.object(sys, 'argv', argv), contextlib.redirect_stdout(io.StringIO()):
-            promote.main()
+    def save(self, work):
+        promote.git('add', '.', cwd=work)
+        promote.git('commit', '-qm', 'Fixture commit', cwd=work)
+        promote.git('push', '-q', 'origin', 'main', cwd=work)
+        return promote.git('rev-parse', 'HEAD', cwd=work)
 
-    def show(self, branch, path):
-        return promote.git('--git-dir', str(self.remote), 'show', f'{branch}:{path}')
+    def invoke(self, env='stage', **kwargs):
+        return promote.promote(env, self.sha, self.pair, app_repo=str(self.app),
+                               infra_repo=str(self.infra), validator=self.validator, **kwargs)
 
-    def test_stage_records_exact_pair_and_is_idempotent(self):
-        self.invoke('stage')
-        path = 'deploy/overlays/stage/promotion.json'
-        self.assertEqual(json.loads(self.show('main', path))['digests'], self.digests)
-        head = promote.git('--git-dir', str(self.remote), 'rev-parse', 'main')
-        self.invoke('stage')
-        self.assertEqual(promote.git('--git-dir', str(self.remote), 'rev-parse', 'main'), head)
-        overlay = self.show('main', 'deploy/overlays/stage/kustomization.yaml')
-        self.assertIn('sha-' + self.sha, overlay)
-        self.assertIn(self.digests['backend'], overlay)
-        changes = promote.git('--git-dir', str(self.remote), 'diff-tree', '--root', '--first-parent', '-m',
-                              '--no-commit-id', '--name-only', '-r', 'main').splitlines()
-        self.assertTrue(changes)
-        self.assertTrue(all(path.startswith('deploy/') for path in changes))
+    def show(self, path, branch='main'):
+        return promote.git('--git-dir', str(self.infra), 'show', branch + ':' + path)
 
-    def test_stale_stage_build_cannot_overwrite_new_source(self):
-        (self.work / 'source.py').write_text('version = 2\n')
-        newer = self.commit('New source')
-        self.invoke('stage')
-        self.assertEqual(promote.git('--git-dir', str(self.remote), 'rev-parse', 'main'), newer)
+    def head(self):
+        return promote.git('--git-dir', str(self.infra), 'rev-parse', 'main')
 
-    def test_unrelated_main_commit_survives_push_retry(self):
+    def receipt(self, result):
+        return {'version': 1, 'status': 'accepted', 'sha': self.sha, 'digests': self.pair,
+                'infrastructure_commit': result['infrastructure_commit'], 'argo_revision': self.head(),
+                'checks': {'argo': True, 'running_images': True, 'url': True}}
+
+    def tag(self):
+        promote.git('tag', 'v1.2.0', cwd=self.aw)
+        promote.git('push', '-q', 'origin', 'v1.2.0', cwd=self.aw)
+
+    def test_stage_is_scoped_and_idempotent(self):
+        self.assertNotEqual(self.sha, self.base)
+        result = self.invoke()
+        head = self.head()
+        self.assertEqual(result['status'], 'promoted')
+        paths = set(promote.git('--git-dir', str(self.infra), 'diff-tree', '--no-commit-id', '--name-only', '-r', head).splitlines())
+        self.assertTrue(paths <= promote.STAGE_FILES)
+        self.assertEqual(json.loads(self.show(promote.OVERLAYS + '/stage/promotion.json'))['digests'], self.pair)
+        self.invoke()
+        self.assertEqual(head, self.head())
+
+    def test_any_new_main_commit_even_docs_or_failed_ci_supersedes(self):
+        (self.aw / 'README.md').write_text('newer failed or unbuilt commit')
+        self.save(self.aw)
+        self.assertEqual(self.invoke()['status'], 'superseded')
+        self.assertEqual(self.head(), self.base)
+
+    def test_recheck_immediately_before_push(self):
+        real = promote.current_main
+        calls = 0
+        def advance(repo):
+            nonlocal calls
+            calls += 1
+            if calls == 2:
+                (self.aw / 'source').write_text('new main')
+                self.save(self.aw)
+            return real(repo)
+        with patch.object(promote, 'current_main', side_effect=advance):
+            self.assertEqual(self.invoke()['status'], 'superseded')
+        self.assertEqual(self.head(), self.base)
+
+    def test_unrelated_concurrent_infrastructure_change_survives(self):
         raced = False
-
         def race(args, *a, **kw):
             nonlocal raced
             if args[:3] == ['git', 'push', 'origin'] and not raced:
                 raced = True
-                (self.work / 'notes.md').write_text('Concurrent human update\n')
-                self.commit('Concurrent documentation')
+                (self.iw / 'notes.md').write_text('human update')
+                self.save(self.iw)
             return REAL_RUN(args, *a, **kw)
-
         with patch.object(subprocess, 'run', side_effect=race):
-            self.invoke('stage')
+            self.invoke()
         self.assertTrue(raced)
-        self.assertEqual(self.show('main', 'notes.md'), 'Concurrent human update')
-        self.assertEqual(json.loads(self.show('main', 'deploy/overlays/stage/promotion.json'))['sha'], self.sha)
+        self.assertEqual(self.show('notes.md'), 'human update')
 
-    def test_rejected_push_fails_without_retry(self):
-        # Like a GH013 ruleset rejection: the remote declines every push to main.
-        hook = self.remote / 'hooks' / 'pre-receive'
-        hook.write_text('#!/bin/sh\necho "GH013: Repository rule violations found" >&2\nexit 1\n')
+    def test_rules_rejection_fails_once_and_redacts_transport(self):
+        hook = self.infra / 'hooks/pre-receive'
+        hook.write_text('#!/bin/sh\necho fixture-secret-token >&2\nexit 1\n')
         hook.chmod(0o755)
-        pushes = 0
+        with patch.object(promote, 'push_main', wraps=promote.push_main) as push:
+            with self.assertRaisesRegex(RuntimeError, 'branch rules') as raised:
+                self.invoke()
+            self.assertNotIn('fixture-secret-token', str(raised.exception))
+            self.assertEqual(push.call_count, 1)
+        self.assertEqual(self.head(), self.base)
 
-        def count(args, *a, **kw):
-            nonlocal pushes
-            if args[:3] == ['git', 'push', 'origin']:
-                pushes += 1
-            return REAL_RUN(args, *a, **kw)
+    def test_dev_is_review_branch_only(self):
+        result = self.invoke('dev')
+        self.assertEqual(result['status'], 'review-required')
+        self.assertEqual(self.head(), self.base)
+        self.assertEqual(json.loads(self.show(promote.OVERLAYS + '/dev/promotion.json', result['branch']))['sha'], self.sha)
+        self.assertEqual(self.invoke('dev')['branch'], result['branch'])
 
-        with patch.object(subprocess, 'run', side_effect=count), \
-                contextlib.redirect_stderr(io.StringIO()), \
-                self.assertRaisesRegex(RuntimeError, 'ruleset bypass'):
-            self.invoke('stage')
-        self.assertEqual(pushes, 1)
-        self.assertEqual(promote.git('--git-dir', str(self.remote), 'rev-parse', 'main'), self.sha)
-
-    def test_missing_images_fail_before_git_write(self):
-        self.registry.clear()
-        with self.assertRaises(KeyError):
-            self.invoke('stage')
-        self.assertEqual(promote.git('--git-dir', str(self.remote), 'rev-parse', 'main'), self.sha)
-
-    def test_dev_changes_only_dev(self):
-        self.invoke('dev')
-        self.assertEqual(json.loads(self.show('main', 'deploy/overlays/dev/promotion.json'))['sha'], self.sha)
-        self.assertNotIn('digest:', self.show('main', 'deploy/overlays/prod/kustomization.yaml'))
-
-    def tag(self):
-        promote.git('tag', 'v1.2.0', self.sha, cwd=self.work)
-        promote.git('push', '-q', 'origin', 'v1.2.0', cwd=self.work)
-
-    def test_release_requires_stage_history(self):
+    def test_stage_promotion_without_acceptance_cannot_qualify_prod(self):
+        self.invoke()
         self.tag()
-        with self.assertRaisesRegex(RuntimeError, 'never been promoted to stage'):
+        with self.assertRaisesRegex(RuntimeError, 'successful STAGE acceptance'):
             self.invoke('prod', release='v1.2.0')
 
-    def test_release_creates_only_review_branch_and_reuses_digests(self):
-        self.invoke('stage')
+    def test_accepted_pair_qualifies_prod_without_build_or_main_write(self):
+        result = self.invoke()
+        promote.record_acceptance(self.receipt(result), str(self.infra))
         self.tag()
-        head = promote.git('--git-dir', str(self.remote), 'rev-parse', 'main')
-        for name, value in self.digests.items():
-            self.registry[f'{promote.REGISTRY}{name}:v1.2.0'] = value
+        before = self.head()
+        prod = self.invoke('prod', release='v1.2.0')
+        self.assertEqual(prod['status'], 'review-required')
+        self.assertEqual(self.head(), before)
+        self.assertEqual(json.loads(self.show(promote.OVERLAYS + '/prod/promotion.json', prod['branch']))['digests'], self.pair)
 
-        def registry_read(args, *a, **kw):
-            if args[0] == 'crane':
-                self.assertEqual(args[1], 'digest')
-                return subprocess.CompletedProcess(args, 0, self.registry[args[2]] + '\n', '')
-            return REAL_RUN(args, *a, **kw)
-
-        with patch.object(subprocess, 'run', side_effect=registry_read):
-            self.invoke('prod', release='v1.2.0')
-            self.invoke('prod', release='v1.2.0')
-        self.assertEqual(promote.git('--git-dir', str(self.remote), 'rev-parse', 'main'), head)
-        record = json.loads(self.show('release/v1.2.0', 'deploy/overlays/prod/promotion.json'))
-        self.assertEqual(record['sha'], self.sha)
-        self.assertEqual(record['digests'], self.digests)
-
-    def test_release_refuses_moved_registry_tag(self):
-        self.invoke('stage')
+    def test_failed_or_wrong_digest_acceptance_never_qualifies(self):
+        result = self.invoke()
+        record = self.receipt(result)
+        record['checks']['url'] = False
+        with self.assertRaisesRegex(ValueError, 'Incomplete'):
+            promote.record_acceptance(record, str(self.infra))
+        record['status'] = 'failed'
+        promote.record_acceptance(record, str(self.infra))
         self.tag()
-
-        def registry_read(args, *a, **kw):
-            if args[0] == 'crane':
-                return subprocess.CompletedProcess(args, 0, 'sha256:' + 'c' * 64, '')
-            return REAL_RUN(args, *a, **kw)
-
-        with patch.object(subprocess, 'run', side_effect=registry_read), self.assertRaisesRegex(RuntimeError, 'overwrite existing release tag'):
+        with self.assertRaisesRegex(RuntimeError, 'successful STAGE acceptance'):
             self.invoke('prod', release='v1.2.0')
 
-    def test_release_rejects_commit_outside_main(self):
-        promote.git('checkout', '-qb', 'feature', cwd=self.work)
-        (self.work / 'source.py').write_text('not reviewed\n')
-        promote.git('add', '.', cwd=self.work)
-        promote.git('commit', '-qm', 'Feature only', cwd=self.work)
-        sha = promote.git('rev-parse', 'HEAD', cwd=self.work)
-        promote.git('push', '-q', 'origin', 'feature', cwd=self.work)
-        for name, value in self.digests.items():
-            self.registry[f'{promote.REGISTRY}{name}:sha-{sha}'] = value
-        with self.assertRaises(subprocess.CalledProcessError):
-            self.invoke('prod', sha, 'v1.2.0')
+    def test_receipt_for_other_pair_or_revision_rejected(self):
+        result = self.invoke()
+        record = self.receipt(result)
+        record['digests'] = dict(self.pair, backend='sha256:' + 'f' * 64)
+        with self.assertRaisesRegex(RuntimeError, 'obsolete'):
+            promote.record_acceptance(record, str(self.infra))
+        record = self.receipt(result)
+        record['argo_revision'] = self.base
+        with self.assertRaises(RuntimeError):
+            promote.record_acceptance(record, str(self.infra))
+
+    def test_new_promotion_invalidates_current_acceptance(self):
+        first = self.invoke()
+        promote.record_acceptance(self.receipt(first), str(self.infra))
+        (self.aw / 'source').write_text('second')
+        self.sha = self.save(self.aw)
+        self.invoke()
+        files = promote.git('--git-dir', str(self.infra), 'ls-tree', '-r', '--name-only', 'main').splitlines()
+        self.assertNotIn(promote.OVERLAYS + '/stage/acceptance.json', files)
+
+    def test_release_tag_must_match_application_sha(self):
+        self.tag()
+        (self.aw / 'source').write_text('new')
+        self.sha = self.save(self.aw)
+        with self.assertRaisesRegex(RuntimeError, 'Release tag'):
+            self.invoke('prod', release='v1.2.0')
 
 
 if __name__ == '__main__':
