@@ -26,6 +26,13 @@ STEPS = (
 # The 18 gates an attestation can record; "attest" itself and "gitops" are not image gates.
 GATES = tuple(step for step in STEPS if step != "attest")
 PROFILES = {
+    # Temporary functional-only checkpoint; deliberately cannot attest or publish.
+    "migration": (
+        "config", "backend-dependencies", "backend-lint", "backend-unit",
+        "backend-integration", "frontend-dependencies", "frontend-lint",
+        "frontend-build", "frontend-tests", "backend-image", "frontend-image",
+        "backend-image-smoke", "frontend-image-smoke",
+    ),
     # Pull requests and the nightly run: every gate plus GitOps manifest and CI-script checks.
     "full": (*GATES, "gitops"),
     # Merges to main: re-verify the image that gets published and refresh vulnerability data.
@@ -270,7 +277,7 @@ class CI:
         elif name in ("backend-unit", "backend-integration"):
             self.backend_tests(unit=name == "backend-unit")
         elif name == "frontend-dependencies":
-            self.container(node, "npm", "ci", memory="2g")
+            self.container(node, "npm", "ci", "--no-audit", memory="2g")
         elif name == "frontend-lint":
             self.container(node, "npm", "run", "lint")
         elif name == "frontend-build":

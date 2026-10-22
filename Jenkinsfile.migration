@@ -1,0 +1,80 @@
+// Temporary functional-only checkpoint. Installed inline from a reviewed Git object.
+pipeline {
+    agent { label 'host-ci' }
+    options {
+        skipDefaultCheckout(true)
+        disableConcurrentBuilds()
+        disableResume()
+        timeout(time: 90, unit: 'MINUTES')
+        buildDiscarder(logRotator(numToKeepStr: '20', artifactNumToKeepStr: '2'))
+    }
+    parameters {
+        string(name: 'APP_COMMIT', defaultValue: '', description: 'Exact approved application commit')
+        string(name: 'SOURCE_BUNDLE', defaultValue: '', description: 'Operator-staged local Git bundle')
+    }
+    stages {
+        stage('Checkout approved source') {
+            steps {
+                script {
+                    if (!(params.APP_COMMIT ==~ /[0-9a-f]{40}/)) { error('Full Git SHA required') }
+                    if (params.SOURCE_BUNDLE != "/home/jenkins/agent/.migration-inputs/${params.APP_COMMIT}.bundle") {
+                        error('Expected the operator-staged bundle path')
+                    }
+                    deleteDir()
+                    sh '''
+                        set -eu
+                        git clone --no-checkout "$SOURCE_BUNDLE" .
+                        git checkout --detach "$APP_COMMIT"
+                        test "$(git rev-parse HEAD)" = "$APP_COMMIT"
+                    '''
+                    currentBuild.description = "Functional-only migration: ${params.APP_COMMIT}"
+                }
+            }
+        }
+        stage('Functional gates') {
+            steps {
+                script {
+                    def gates = sh(returnStdout: true,
+                        script: 'python3 ci/phase1.py steps --profile migration').trim().split('\n')
+                    for (gate in gates) {
+                        stage(gate) { sh "python3 ci/phase1.py ${gate}" }
+                    }
+                }
+            }
+        }
+    }
+    post {
+        always {
+            script {
+                try {
+                    if (fileExists('ci/phase1.py')) {
+                        sh '''python3 - <<'PYRESULT'
+import json
+import sys
+sys.path.insert(0, 'ci')
+from phase1 import CI, PROFILES, STEPS
+ci = CI()
+(ci.reports / 'migration-result.json').write_text(json.dumps({
+    'profile': 'migration', 'sha': ci.sha, 'passed': ci.state['passed'],
+    'expected': PROFILES['migration'],
+    'deferred': [s for s in (*STEPS, 'gitops') if s not in PROFILES['migration']],
+    'publishable': False,
+}, indent=2) + '\n')
+PYRESULT'''
+                    }
+                    for (report in ['backend-unit', 'backend-integration', 'frontend-tests']) {
+                        if (fileExists(".ci-output/${report}.xml")) { junit ".ci-output/${report}.xml" }
+                    }
+                } finally {
+                    try {
+                        archiveArtifacts artifacts: '.ci-output/*.json,.ci-output/*.xml', allowEmptyArchive: true
+                    } finally {
+                        try {
+                            if (fileExists('ci/phase1.py')) { sh 'python3 ci/phase1.py cleanup' }
+                        } finally { deleteDir() }
+                    }
+                }
+            }
+        }
+    }
+}

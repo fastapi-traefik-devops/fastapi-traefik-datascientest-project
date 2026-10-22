@@ -25,6 +25,14 @@ class ProfileTests(unittest.TestCase):
         for gate in ("backend-unit", "backend-integration", "frontend-tests"):
             self.assertNotIn(gate, RELEASE_GATES)
 
+    def test_migration_only_runs_functional_gates_in_original_order(self):
+        deferred = {"secrets", "backend-security", "frontend-security",
+                    "backend-image-security", "frontend-image-security", "attest"}
+        self.assertEqual(PROFILES["migration"], tuple(s for s in STEPS if s not in deferred))
+        self.assertEqual(len(PROFILES["migration"]), 13)
+        self.assertNotIn("gitops", PROFILES["migration"])
+        self.assertFalse(RELEASE_GATES <= set(PROFILES["migration"]))
+
     def test_profiles_only_use_known_steps(self):
         for steps in PROFILES.values():
             self.assertTrue(set(steps) <= {*STEPS, "gitops"})
