@@ -1,5 +1,7 @@
 """Gate profiles and attestation, on a temporary Git repository; no Docker or network."""
 import json
+import os
+from unittest.mock import patch
 from pathlib import Path
 import shutil
 import subprocess
@@ -24,6 +26,14 @@ class ProfileTests(unittest.TestCase):
             self.assertIn(gate, RELEASE_GATES)
         for gate in ("backend-unit", "backend-integration", "frontend-tests"):
             self.assertNotIn(gate, RELEASE_GATES)
+
+    def test_migration_only_runs_functional_gates_in_original_order(self):
+        deferred = {"secrets", "backend-security", "frontend-security",
+                    "backend-image-security", "frontend-image-security", "attest"}
+        self.assertEqual(PROFILES["migration"], tuple(s for s in STEPS if s not in deferred))
+        self.assertEqual(len(PROFILES["migration"]), 13)
+        self.assertNotIn("gitops", PROFILES["migration"])
+        self.assertFalse(RELEASE_GATES <= set(PROFILES["migration"]))
 
     def test_profiles_only_use_known_steps(self):
         for steps in PROFILES.values():
@@ -54,10 +64,45 @@ class AttestTests(unittest.TestCase):
             (reports / f"{component}-image-security.json").write_text(json.dumps({"Results": []}))
             (reports / f"{component}-ci.tar").write_bytes(component.encode())
 
+    def test_export_saves_only_tested_runtime_images_with_no_scanner(self):
+        self.ci.state['passed'] = list(PROFILES['migration'])
+        for filename in phase1.TEST_REPORTS.values():
+            (self.ci.reports / filename).write_text('<testsuite tests="2" failures="0" errors="0"/>')
+        calls = []
+        def save(*args):
+            calls.append(args)
+            self.assertEqual(args[:3], ('docker', 'save', '-o'))
+            Path(args[3]).write_bytes(args[4].encode())
+        with patch.object(phase1, 'run', side_effect=save), patch.dict(os.environ, JOB_NAME='migration-ci', BUILD_NUMBER='3'):
+            self.ci.export_images()
+        self.assertEqual([args[4] for args in calls], [f'phase1/{n}:{self.ci.name}' for n in ('backend', 'frontend')])
+        manifest = json.loads((self.ci.reports / 'candidate.json').read_text())
+        self.assertEqual(manifest['sha'], self.ci.sha)
+        self.assertFalse(manifest['security_scanned'])
+        self.assertFalse((self.ci.reports / 'gates.json').exists())
+
+    def test_export_incomplete_gates_never_touches_docker(self):
+        self.ci.state['passed'] = list(PROFILES['migration'][:-1])
+        with patch.object(phase1, 'run') as command, self.assertRaises(RuntimeError):
+            self.ci.export_images()
+        command.assert_not_called()
+
     def attest_after(self, passed):
         self.ci.state["passed"] = list(passed)
         self.ci.step("attest")
         return json.loads((self.ci.reports / "gates.json").read_text())
+
+    def test_migration_report_keeps_incomplete_and_deferred_steps_explicit(self):
+        self.ci.state["passed"] = list(PROFILES["migration"][:3])
+        self.ci.migration_report()
+        report = json.loads((self.ci.reports / "migration-result.json").read_text())
+        self.assertEqual(report["sha"], self.ci.sha)
+        self.assertEqual(report["passed"], list(PROFILES["migration"][:3]))
+        self.assertEqual(report["not_completed"], list(PROFILES["migration"][3:]))
+        self.assertIn("attest", report["deferred"])
+        self.assertIn("gitops", report["deferred"])
+        self.assertFalse(report["publishable"])
+        self.assertFalse((self.ci.reports / "gates.json").exists())
 
     def test_release_run_attests_release_gates(self):
         manifest = self.attest_after(RELEASE_GATES)

@@ -1,138 +1,234 @@
 #!/usr/bin/env python3
-"""Trusted Git writer. Never execute code from a selected application revision."""
+"""Trusted two-repository writer. Only STAGE updates main; DEV/PROD need review."""
 import argparse
+from contextlib import contextmanager
+import fcntl
 import json
 from pathlib import Path
 import re
 import subprocess
-import sys
 import tempfile
 
-REPO = 'https://github.com/fastapi-traefik-devops/fastapi-traefik-liora-application.git'
+APPLICATION_REPO = 'https://github.com/fastapi-traefik-devops/fastapi-traefik-liora-application.git'
+INFRASTRUCTURE_REPO = 'https://github.com/fastapi-traefik-devops/fastapi-traefik-liora-infrastructure.git'
 REGISTRY = 'ghcr.io/fastapi-traefik-devops/fastapi-'
+OVERLAYS = 'kubernetes/apps/liora/overlays'
+# Flip only in a reviewed change after the agreed acceptance gate is live-verified.
+PROD_ENABLED = False
+COMPONENTS = ('backend', 'frontend')
+STAGE_FILES = {f'{OVERLAYS}/stage/{n}' for n in ('kustomization.yaml', 'promotion.json', 'acceptance.json')}
 
 
 def run(*args, cwd=None):
-    return subprocess.check_output(args, cwd=cwd, text=True).strip()
+    # Never echo captured transport failures, which may contain credential material.
+    result = subprocess.run(args, cwd=cwd, text=True, capture_output=True)
+    if result.returncode:
+        raise RuntimeError('Trusted command failed: ' + args[0])
+    return result.stdout.strip()
 
 
 def git(*args, cwd=None):
     return run('git', *args, cwd=cwd)
 
 
-def digest(image):
-    return run('crane', 'digest', image)
+def pair_valid(pair):
+    return (isinstance(pair, dict) and set(pair) == set(COMPONENTS)
+            and all(isinstance(d, str) and re.fullmatch(r'sha256:[0-9a-f]{64}', d) for d in pair.values()))
+
+
+def source_valid(sha):
+    if not re.fullmatch(r'[0-9a-f]{40}', sha):
+        raise ValueError('Full application SHA required')
+
+
+def current_main(repo):
+    return git('ls-remote', '--exit-code', repo, 'refs/heads/main').split()[0]
 
 
 def set_images(path, sha, digests):
-    # Deliberately edit only image fields; preserve human-maintained overlay YAML.
     text = path.read_text()
-    for name in ('backend', 'frontend'):
-        pattern = rf'(  newName: {REGISTRY}{name}\n)  newTag: [^\n]+(?:\n  digest: [^\n]+)?'
+    for name in COMPONENTS:
+        pattern = rf'(  newName: {re.escape(REGISTRY + name)}\n)  newTag: [^\n]+(?:\n  digest: [^\n]+)?'
         text, count = re.subn(pattern, rf'\g<1>  newTag: sha-{sha}\n  digest: {digests[name]}', text)
         if count != 1:
-            raise RuntimeError(f'Expected exactly one {name} image entry in {path}')
+            raise RuntimeError('Expected exactly one image entry per component')
     path.write_text(text)
+
+
+def accepted(record, sha, digests):
+    """Only observer evidence, not a desired-state promotion, qualifies for PROD."""
+    return (record.get('version') == 1 and record.get('status') == 'accepted'
+            and record.get('sha') == sha and record.get('digests') == digests
+            and pair_valid(digests) and bool(re.fullmatch(r'[0-9a-f]{40}', record.get('infrastructure_commit', '')))
+            and bool(re.fullmatch(r'[0-9a-f]{40}', record.get('argo_revision', '')))
+            and record.get('checks') == {'argo': True, 'running_images': True, 'url': True})
+
+
+@contextmanager
+def serialized():
+    # Jenkins lock spans publication, promotion and acceptance. Also protect local CLI invocations.
+    with open(Path.home() / '.liora-stage-promotion.lock', 'a') as stream:
+        fcntl.flock(stream, fcntl.LOCK_EX)
+        yield
+
+
+def commit(directory, environment, sha, allowed):
+    existing = {p for p in allowed if (Path(directory) / p).exists()}
+    tracked = set(git('ls-files', '--', *sorted(allowed), cwd=directory).splitlines())
+    git('add', '--all', '--', *sorted(existing | tracked), cwd=directory)
+    paths = set(git('diff', '--cached', '--name-only', cwd=directory).splitlines())
+    if not paths <= allowed:
+        raise RuntimeError('Writer attempted to modify a forbidden path')
+    if not paths:
+        return False
+    git('-c', 'user.name=Jenkins GitOps', '-c', 'user.email=jenkins-gitops@users.noreply.github.com',
+        'commit', '-m', f'chore(gitops): update {environment} for {sha[:12]}',
+        '-m', 'Record the verified immutable application image pair and its deployment evidence. '
+              'Only the selected environment files are changed; unrelated infrastructure changes are preserved.', cwd=directory)
+    return True
+
+
+def push_main(directory):
+    result = subprocess.run(['git', 'push', 'origin', 'HEAD:refs/heads/main'], cwd=directory,
+                            text=True, capture_output=True)
+    if result.returncode == 0:
+        return True
+    if 'fetch first' in result.stderr or 'non-fast-forward' in result.stderr:
+        return False
+    raise RuntimeError('Infrastructure push rejected; verify GitHub App access and branch rules')
+
+
+def prepare(directory):
+    git('fetch', '--quiet', 'origin', 'main', cwd=directory)
+    # This is a disposable data checkout, never the operator repository.
+    git('reset', '--hard', 'origin/main', cwd=directory)
+
+
+def promote(environment, sha, digests, release='', app_repo=APPLICATION_REPO,
+            infra_repo=INFRASTRUCTURE_REPO, validator=None):
+    source_valid(sha)
+    if environment == 'prod' and not PROD_ENABLED:
+        raise RuntimeError('PROD is blocked until STAGE acceptance is implemented and live-verified')
+    if not pair_valid(digests):
+        raise ValueError('Both immutable image digests are required')
+    if environment not in ('dev', 'stage', 'prod'):
+        raise ValueError('Unknown environment')
+    if environment == 'prod' and not re.fullmatch(r'v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)', release):
+        raise ValueError('PROD requires vX.Y.Z release tag')
+    with serialized(), tempfile.TemporaryDirectory(prefix='liora-gitops-') as directory:
+        app = Path(directory) / 'application'
+        infra = Path(directory) / 'infrastructure'
+        git('clone', '--quiet', '--no-checkout', app_repo, str(app))
+        # Validate source membership using application history alone.
+        git('cat-file', '-e', sha + '^{commit}', cwd=app)
+        if environment != 'dev':
+            git('merge-base', '--is-ancestor', sha, 'origin/main', cwd=app)
+        if environment == 'prod':
+            git('fetch', '--quiet', 'origin', f'refs/tags/{release}:refs/tags/{release}', cwd=app)
+            if git('rev-parse', release + '^{commit}', cwd=app) != sha:
+                raise RuntimeError('Release tag does not identify the selected application SHA')
+        git('clone', '--quiet', '--branch', 'main', infra_repo, str(infra))
+        for attempt in range(5):
+            prepare(infra)
+            overlay = infra / OVERLAYS / environment
+            if environment == 'stage' and current_main(app_repo) != sha:
+                return {'status': 'superseded', 'sha': sha, 'digests': digests}
+            if environment == 'prod':
+                found = False
+                receipt = f'{OVERLAYS}/stage/acceptance.json'
+                for revision in git('log', '--format=%H', 'origin/main', '--', receipt, cwd=infra).splitlines():
+                    content = subprocess.run(['git', 'show', f'{revision}:{receipt}'], cwd=infra,
+                                             text=True, capture_output=True)
+                    if content.returncode == 0 and accepted(json.loads(content.stdout), sha, digests):
+                        found = True
+                        break
+                if not found:
+                    raise RuntimeError('PROD requires successful STAGE acceptance of this exact source and pair')
+            previous = overlay / 'promotion.json'
+            record = {'sha': sha, 'digests': digests, 'release': release}
+            unchanged = previous.exists() and json.loads(previous.read_text()) == record
+            set_images(overlay / 'kustomization.yaml', sha, digests)
+            previous.write_text(json.dumps(record, indent=2) + '\n')
+            if environment == 'stage' and not unchanged:
+                (overlay / 'acceptance.json').unlink(missing_ok=True)
+            run('sh', str(validator or Path(__file__).with_name('validate.sh')), cwd=infra)
+            allowed = STAGE_FILES if environment == 'stage' else {
+                f'{OVERLAYS}/{environment}/kustomization.yaml', f'{OVERLAYS}/{environment}/promotion.json'}
+            changed = commit(infra, environment, sha, allowed)
+            head = git('rev-parse', 'HEAD', cwd=infra)
+            if environment == 'stage':
+                # Mandatory recheck immediately before EVERY attempted infrastructure push.
+                # Different repositories cannot provide a cross-repository atomic transaction.
+                if current_main(app_repo) != sha:
+                    return {'status': 'superseded', 'sha': sha, 'digests': digests}
+                if changed and not push_main(infra):
+                    continue
+                return {'status': 'promoted', 'sha': sha, 'digests': digests,
+                        'infrastructure_commit': head}
+            branch = f'promotion/{environment}/{release or sha}'
+            refs = git('ls-remote', 'origin', f'refs/heads/{branch}', cwd=infra)
+            if refs:
+                git('fetch', '--quiet', 'origin', branch, cwd=infra)
+                for path in allowed:
+                    if git('show', f'FETCH_HEAD:{path}', cwd=infra) != (infra / path).read_text().strip():
+                        raise RuntimeError('Existing review branch differs; manual resolution required')
+            elif changed:
+                git('push', 'origin', f'HEAD:refs/heads/{branch}', cwd=infra)
+            return {'status': 'review-required', 'sha': sha, 'digests': digests,
+                    'branch': branch, 'review_url': INFRASTRUCTURE_REPO.removesuffix('.git') + '/compare/main...' + branch}
+        raise RuntimeError('Infrastructure main advanced repeatedly; retry manually')
+
+
+def record_acceptance(record, infra_repo=INFRASTRUCTURE_REPO):
+    sha, digests = record['sha'], record['digests']
+    source_valid(sha)
+    if record.get('status') not in ('accepted', 'failed') or not pair_valid(digests):
+        raise ValueError('Invalid observer receipt')
+    if record['status'] == 'accepted' and not accepted(record, sha, digests):
+        raise ValueError('Incomplete acceptance evidence')
+    with serialized(), tempfile.TemporaryDirectory(prefix='liora-acceptance-') as directory:
+        git('clone', '--quiet', '--branch', 'main', infra_repo, directory)
+        for attempt in range(5):
+            prepare(directory)
+            stage = Path(directory) / OVERLAYS / 'stage'
+            promotion = json.loads((stage / 'promotion.json').read_text())
+            if promotion.get('sha') != sha or promotion.get('digests') != digests:
+                raise RuntimeError('STAGE has changed; refuse to attach obsolete acceptance')
+            git('merge-base', '--is-ancestor', record['infrastructure_commit'], 'origin/main', cwd=directory)
+            if record['status'] == 'accepted':
+                git('merge-base', '--is-ancestor', record['infrastructure_commit'], record['argo_revision'], cwd=directory)
+                git('merge-base', '--is-ancestor', record['argo_revision'], 'origin/main', cwd=directory)
+                observed = json.loads(git('show', f"{record['argo_revision']}:{OVERLAYS}/stage/promotion.json", cwd=directory))
+                if observed.get('sha') != sha or observed.get('digests') != digests:
+                    raise RuntimeError('Observed Argo revision does not contain the selected pair')
+            receipt = stage / 'acceptance.json'
+            receipt.write_text(json.dumps(record, indent=2) + '\n')
+            allowed = {f'{OVERLAYS}/stage/acceptance.json'}
+            if not commit(directory, 'stage', sha, allowed) or push_main(directory):
+                return
+        raise RuntimeError('Infrastructure main advanced repeatedly while recording acceptance')
 
 
 def main():
     p = argparse.ArgumentParser()
-    p.add_argument('environment', choices=['dev', 'stage', 'prod'])
-    p.add_argument('sha')
+    p.add_argument('environment', choices=['dev', 'stage', 'prod', 'accept-stage'])
+    p.add_argument('source', help='Application SHA, or observer receipt for accept-stage')
     p.add_argument('--release', default='')
+    p.add_argument('--output', default='stage-request.json')
     args = p.parse_args()
-    if not re.fullmatch(r'[0-9a-f]{40}', args.sha):
-        p.error('full SHA required')
-    if args.environment == 'prod' and not re.fullmatch(r'v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)', args.release):
-        p.error('production requires vX.Y.Z')
-    digests = {n: digest(f'{REGISTRY}{n}:sha-{args.sha}') for n in ('backend', 'frontend')}
-    if not all(re.fullmatch(r'sha256:[0-9a-f]{64}', d) for d in digests.values()):
-        raise RuntimeError('Unexpected registry digest')
-    # A fixed trusted implementation is used; the target checkout is data only.
-    with tempfile.TemporaryDirectory(prefix='gitops-') as directory:
-        git('clone', '--quiet', '--no-checkout', REPO, directory)
-        git('checkout', '--quiet', '-B', 'promotion', 'origin/main', cwd=directory)
-        if args.environment != 'dev':
-            git('merge-base', '--is-ancestor', args.sha, 'origin/main', cwd=directory)
-        if args.environment == 'prod':
-            git('fetch', '--quiet', 'origin', f'refs/tags/{args.release}:refs/tags/{args.release}', cwd=directory)
-            if git('rev-parse', f'{args.release}^{{commit}}', cwd=directory) != args.sha:
-                raise RuntimeError('Release tag moved or disagrees with selected SHA')
-            # Evidence that this exact digest pair was recorded in stage Git history.
-            # Human approval additionally verifies Argo health/smoke tests; Jenkins has no cluster access.
-            found = False
-            for commit in git('log', '--format=%H', 'origin/main', '--', 'deploy/overlays/stage/promotion.json', cwd=directory).splitlines():
-                record = json.loads(git('show', f'{commit}:deploy/overlays/stage/promotion.json', cwd=directory))
-                if record['sha'] == args.sha and record['digests'] == digests:
-                    found = True
-                    break
-            if not found:
-                raise RuntimeError('This digest pair has never been promoted to stage')
-            for name, expected in digests.items():
-                target = f'{REGISTRY}{name}:{args.release}'
-                existing = subprocess.run(['crane', 'digest', target], text=True, capture_output=True)
-                if existing.returncode == 0:
-                    if existing.stdout.strip() != expected:
-                        raise RuntimeError('Refusing to overwrite existing release tag')
-                elif 'MANIFEST_UNKNOWN' in existing.stderr or 'NAME_UNKNOWN' in existing.stderr:
-                    run('crane', 'tag', f'{REGISTRY}{name}@{expected}', args.release)
-                else:
-                    raise RuntimeError('Registry lookup failed; refusing to treat it as missing')
-                if digest(target) != expected:
-                    raise RuntimeError('Release digest mismatch')
-        for attempt in range(5):
-            git('fetch', '--quiet', 'origin', 'main', cwd=directory)
-            git('reset', '--hard', 'origin/main', cwd=directory)
-            overlay = Path(directory) / 'deploy' / 'overlays' / args.environment
-            record_path = overlay / 'promotion.json'
-            if args.environment == 'stage':
-                # Reject delayed builds when newer application/CI changes have reached main.
-                changed = git('diff', '--name-only', args.sha, 'origin/main', cwd=directory).splitlines()
-                if any(not (f.startswith(('deploy/', 'argocd/')) or f.endswith('.md')) for f in changed):
-                    print('Stage promotion superseded by newer source on main')
-                    return
-                if record_path.exists():
-                    old = json.loads(record_path.read_text())['sha']
-                    if old != args.sha:
-                        git('merge-base', '--is-ancestor', old, args.sha, cwd=directory)
-            set_images(overlay / 'kustomization.yaml', args.sha, digests)
-            record_path.write_text(json.dumps({'sha': args.sha, 'digests': digests, 'release': args.release}, indent=2) + '\n')
-            # Run the original trusted validator, never scripts from the data checkout.
-            run('sh', str(Path(__file__).resolve().parent / 'validate.sh'), cwd=directory)
-            git('add', f'deploy/overlays/{args.environment}', cwd=directory)
-            if not git('diff', '--cached', '--name-only', cwd=directory):
-                print('Desired state already matches')
-                return
-            if args.environment == 'prod':
-                branch = f'release/{args.release}'
-                ref = f'refs/remotes/origin/{branch}'
-                exists = subprocess.run(['git', 'show-ref', '--verify', '--quiet', ref], cwd=directory)
-                if exists.returncode == 0:
-                    for filename in ('promotion.json', 'kustomization.yaml'):
-                        existing = git('show', f'{ref}:deploy/overlays/prod/{filename}', cwd=directory)
-                        if existing != (overlay / filename).read_text().strip():
-                            raise RuntimeError('Existing release branch differs; review it manually, never overwrite')
-                    print(f'Existing review branch: {branch}')
-                    return
-            git('-c', 'user.name=Jenkins GitOps', '-c', 'user.email=jenkins-gitops@users.noreply.github.com',
-                'commit', '-m', f'gitops({args.environment}): promote {args.sha} {args.release}'.strip(), cwd=directory)
-            if args.environment == 'prod':
-                branch = f'release/{args.release}'
-                # Never force-push or merge. A human opens/reviews the PR.
-                git('push', 'origin', f'HEAD:refs/heads/{branch}', cwd=directory)
-                print(f'Open reviewed PR: {REPO.removesuffix(".git")}/compare/main...{branch}')
-                return
-            result = subprocess.run(['git', 'push', 'origin', 'HEAD:refs/heads/main'], cwd=directory,
-                                    capture_output=True, text=True)
-            sys.stderr.write(result.stderr)
-            if result.returncode == 0:
-                return
-            # Only a concurrent commit on main is worth a retry; a ruleset or permission
-            # rejection (e.g. GH013, missing bypass) fails the same way every time.
-            if 'fetch first' not in result.stderr and 'non-fast-forward' not in result.stderr:
-                raise RuntimeError('Push to main rejected; check the fastapi-gitops ruleset bypass')
-        raise RuntimeError('Main advanced repeatedly; rerun promotion')
+    if args.environment == 'accept-stage':
+        record_acceptance(json.loads(Path(args.source).read_text()))
+        return
+    if args.environment == 'prod' and not PROD_ENABLED:
+        raise RuntimeError('PROD is blocked until STAGE acceptance is implemented and live-verified')
+    digests = {n: run('crane', 'digest', f'{REGISTRY}{n}:sha-{args.source}') for n in COMPONENTS}
+    result = promote(args.environment, args.source, digests, args.release)
+    Path(args.output).write_text(json.dumps(result, indent=2) + '\n')
+    print('Promotion result:', result['status'])
 
 
 if __name__ == '__main__':
-    main()
+    try:
+        main()
+    except (RuntimeError, ValueError, KeyError, OSError) as error:
+        raise SystemExit('Promotion failed (' + type(error).__name__ + '); no credentials retained')

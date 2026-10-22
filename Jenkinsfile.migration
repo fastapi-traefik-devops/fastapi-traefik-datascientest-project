@@ -1,0 +1,80 @@
+// Temporary functional-only checkpoint. Installed inline from a reviewed Git object.
+pipeline {
+    agent { label 'host-ci' }
+    options {
+        skipDefaultCheckout(true)
+        disableConcurrentBuilds()
+        disableResume()
+        copyArtifactPermission('/trusted/publish')
+        timeout(time: 90, unit: 'MINUTES')
+        buildDiscarder(logRotator(numToKeepStr: '20', artifactNumToKeepStr: '2'))
+    }
+    parameters {
+        booleanParam(name: 'EXPORT_IMAGES', defaultValue: false, description: 'Export tested archives only; never publish or deploy')
+        string(name: 'APP_COMMIT', defaultValue: '', description: 'Exact approved application commit')
+        string(name: 'SOURCE_BUNDLE', defaultValue: '', description: 'Operator-staged local Git bundle')
+    }
+    stages {
+        stage('Checkout approved source') {
+            steps {
+                script {
+                    if (!(params.APP_COMMIT ==~ /[0-9a-f]{40}/)) { error('Full Git SHA required') }
+                    if (params.SOURCE_BUNDLE != "/home/jenkins/agent/.migration-inputs/${params.APP_COMMIT}.bundle") {
+                        error('Expected the operator-staged bundle path')
+                    }
+                    deleteDir()
+                    sh '''
+                        set -eu
+                        git clone --no-checkout "$SOURCE_BUNDLE" .
+                        git checkout --detach "$APP_COMMIT"
+                        test "$(git rev-parse HEAD)" = "$APP_COMMIT"
+                    '''
+                    currentBuild.description = "Functional-only migration: ${params.APP_COMMIT}"
+                }
+            }
+        }
+        stage('Functional gates') {
+            steps {
+                script {
+                    def gates = sh(returnStdout: true,
+                        script: 'python3 ci/phase1.py steps --profile migration').trim().split('\n')
+                    for (gate in gates) {
+                        stage(gate) { sh "python3 ci/phase1.py ${gate}" }
+                    }
+                }
+            }
+        }
+        stage('Export tested images') {
+            when { expression { params.EXPORT_IMAGES } }
+            steps {
+                sh 'python3 ci/phase1.py export-images'
+                archiveArtifacts artifacts: '.ci-output/*-ci.tar,.ci-output/candidate.json,.ci-output/source-sha.txt,.ci-output/*.xml', fingerprint: true
+            }
+        }
+    }
+    post {
+        always {
+            script {
+                try {
+                    if (fileExists('ci/phase1.py')) {
+                        sh 'python3 ci/phase1.py migration-report'
+                    }
+                } finally {
+                    try {
+                        for (report in ['backend-unit', 'backend-integration', 'frontend-tests']) {
+                            if (fileExists(".ci-output/${report}.xml")) { junit ".ci-output/${report}.xml" }
+                        }
+                    } finally {
+                        try {
+                            archiveArtifacts artifacts: '.ci-output/*.json,.ci-output/*.xml', allowEmptyArchive: true
+                        } finally {
+                            try {
+                                if (fileExists('ci/phase1.py')) { sh 'python3 ci/phase1.py cleanup' }
+                            } finally { deleteDir() }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}

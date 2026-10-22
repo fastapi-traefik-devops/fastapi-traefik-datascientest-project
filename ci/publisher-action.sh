@@ -1,0 +1,40 @@
+#!/bin/sh
+# Trusted entrypoint; no application checkout code runs with write credentials.
+set -eu
+set +x
+: "${GIT_TOKEN:?Git token required}"
+helpers=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
+credentials=$(mktemp -d)
+trap 'rm -rf "$credentials"' EXIT HUP INT TERM
+cat > "$credentials/askpass" <<'ASKPASS'
+#!/bin/sh
+case "$1" in
+  *Username*) printf '%s\n' x-access-token ;;
+  *) printf '%s\n' "$GIT_TOKEN" ;;
+esac
+ASKPASS
+chmod 700 "$credentials/askpass"
+export GIT_ASKPASS="$credentials/askpass" GIT_TERMINAL_PROMPT=0
+if [ "${1:-}" = accept-stage ]; then
+    exec_status=0
+    python3 "$helpers/promote.py" accept-stage stage-acceptance.json || exec_status=$?
+    exit "$exec_status"
+fi
+: "${EXPECTED_SOURCE_SHA:?}" "${GHCR_USER:?}" "${GHCR_TOKEN:?}"
+case "${ACTION:?}" in publish-only|stage) ;; *) exit 1 ;; esac
+if [ "$ACTION" = stage ]; then
+    # Skip obsolete candidates before publication as well as immediately before Git writes.
+    latest=$(git ls-remote --exit-code https://github.com/fastapi-traefik-devops/fastapi-traefik-liora-application.git refs/heads/main)
+    latest=$(printf '%s\n' "$latest" | cut -f1)
+    if [ "$latest" != "$EXPECTED_SOURCE_SHA" ]; then
+        printf '{"status":"superseded"}\n' > stage-request.json
+        exit 0
+    fi
+fi
+export DOCKER_CONFIG="$credentials/docker"
+mkdir -p "$DOCKER_CONFIG"
+# Registry Python authenticates and removes its own private config for publication.
+python3 "$helpers/registry.py" artifacts/.ci-output --mode functional --source-job "$SOURCE_JOB" --source-build "$CI_BUILD"
+[ "$ACTION" != publish-only ] || exit 0
+printf '%s' "$GHCR_TOKEN" | crane auth login ghcr.io -u "$GHCR_USER" --password-stdin >/dev/null 2>&1
+python3 "$helpers/promote.py" "$ACTION" "$EXPECTED_SOURCE_SHA" --release "${RELEASE_TAG:-}"

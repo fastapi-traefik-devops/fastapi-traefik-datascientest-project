@@ -26,6 +26,13 @@ STEPS = (
 # The 18 gates an attestation can record; "attest" itself and "gitops" are not image gates.
 GATES = tuple(step for step in STEPS if step != "attest")
 PROFILES = {
+    # Functional-only gates. Publication requires a separate explicit candidate export.
+    "migration": (
+        "config", "backend-dependencies", "backend-lint", "backend-unit",
+        "backend-integration", "frontend-dependencies", "frontend-lint",
+        "frontend-build", "frontend-tests", "backend-image", "frontend-image",
+        "backend-image-smoke", "frontend-image-smoke",
+    ),
     # Pull requests and the nightly run: every gate plus GitOps manifest and CI-script checks.
     "full": (*GATES, "gitops"),
     # Merges to main: re-verify the image that gets published and refresh vulnerability data.
@@ -270,7 +277,7 @@ class CI:
         elif name in ("backend-unit", "backend-integration"):
             self.backend_tests(unit=name == "backend-unit")
         elif name == "frontend-dependencies":
-            self.container(node, "npm", "ci", memory="2g")
+            self.container(node, "npm", "ci", "--no-audit", memory="2g")
         elif name == "frontend-lint":
             self.container(node, "npm", "run", "lint")
         elif name == "frontend-build":
@@ -325,6 +332,29 @@ class CI:
             self.state["passed"].append(name)
         self.state_file.write_text(json.dumps(self.state))
 
+    def migration_report(self):
+        expected = PROFILES["migration"]
+        manifest = {
+            "profile": "migration", "sha": self.sha, "passed": self.state["passed"],
+            "expected": expected,
+            "not_completed": [step for step in expected if step not in self.state["passed"]],
+            "deferred": [step for step in (*STEPS, "gitops") if step not in expected],
+            "publishable": False,
+        }
+        (self.reports / "migration-result.json").write_text(json.dumps(manifest, indent=2) + "\n")
+
+    def export_images(self):
+        # Export exactly the runtime images that passed the functional smoke gates.
+        from candidate import write_candidate
+        expected = set(PROFILES["migration"])
+        if not expected <= set(self.state["passed"]):
+            raise RuntimeError("All functional gates must pass before exporting images")
+        for component in ("backend", "frontend"):
+            run("docker", "save", "-o", str(self.reports / f"{component}-ci.tar"),
+                f"phase1/{component}:{self.name}")
+        write_candidate(self.reports, self.sha, self.state["passed"],
+                        os.environ["JOB_NAME"], os.environ["BUILD_NUMBER"])
+
     def clean(self):
         # Only resources with this exact build identifier, never unrelated containers/volumes.
         for suffix in ("tool", "backend", "mail", "db", "backend-smoke", "frontend-smoke"):
@@ -349,7 +379,7 @@ class CI:
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("step", choices=[*STEPS, "gitops", "all", "cleanup", "steps"])
+    parser.add_argument("step", choices=[*STEPS, "gitops", "all", "cleanup", "steps", "migration-report", "export-images"])
     parser.add_argument("--profile", choices=sorted(PROFILES), default="full",
                         help="gate set for 'all' and 'steps' (default: full)")
     args = parser.parse_args()
@@ -360,6 +390,10 @@ def main():
     ci = CI()
     if args.step == "cleanup":
         ci.clean()
+    elif args.step == "export-images":
+        ci.export_images()
+    elif args.step == "migration-report":
+        ci.migration_report()
     elif args.step == "all":
         try:
             for step in PROFILES[args.profile]:
