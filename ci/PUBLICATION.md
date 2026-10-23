@@ -24,11 +24,11 @@ the original scan-backed release attestation; missing scans are never fabricated
 SHA tags are write-once and remote digests must match the exported bytes.
 
 STAGE: successful current-main CI → immutable publication → direct infrastructure
-main commit → Argo automatic deployment. No STAGE PR. Automatic acceptance
-is the later target increment.
-For the initial cycle the Jenkins lock spans publication and the STAGE update.
-Automatic acceptance is deferred; verify the first STAGE deployment manually.
-The writer rechecks exact
+main commit → Argo automatic deployment → automatic acceptance → acceptance
+receipt in infrastructure main. No STAGE PR. The Jenkins lock spans publication,
+the STAGE update, observation and the receipt. A failed observation is recorded
+and fails the publisher build; it never rolls back. Until this wiring is installed
+and live-verified, verify STAGE deployments manually. The writer rechecks exact
 application main immediately before every infrastructure push and skips obsolete
 builds (even if newer CI fails). Non-fast-forward infrastructure races retry from
 the latest main, preserving unrelated changes. Two repositories cannot offer an
@@ -41,14 +41,17 @@ Verify branch rules and any necessary App exception before activation. Never run
 code from the selected application/infrastructure checkout with writer credentials.
 The old `ci/publish.sh` entrypoint fails closed.
 
-## Deferred target implementation
+## STAGE acceptance and remaining target work
 
-The observer and acceptance code below is preserved and fixture-tested; it is
-NOT called by the initial publisher and no observer agent is needed for that
-cycle. Full prepared orchestration is retained in Git commit `3b37b50`; extend
-the same publisher later rather than adding a duplicate pipeline.
+`Jenkinsfile.promote` runs the observer for every promoted `stage` request
+(restored from the prepared orchestration in commit `3b37b50`, still without
+DEV/PROD actions). Activation needs the infrastructure `acceptance/` overlay with
+one replica, its inbound node and connection Secret, and both helper bundles
+rebuilt from the reviewed application commit. `ci/test_promote_pipeline.py`
+pins the wiring: the observer runs inside the lock without credentials, and the
+trusted helper records the receipt before the build verdict.
 
-A separate planned `stage-observer` agent has read-only STAGE/Argo RBAC and no writer
+The `stage-observer` agent has read-only STAGE/Argo RBAC and no writer
 credentials. It verifies Argo's source/path/main, Synced/Healthy, fully ready
 Deployments/Pods, actual running manifest imageIDs and HTTPS root + health smoke.
 A login interstitial cannot satisfy smoke. Evidence ties application SHA and both
