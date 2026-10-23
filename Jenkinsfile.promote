@@ -1,11 +1,13 @@
-// Initial K3s cycle only. Install from reviewed source after explicit live approval.
-// Observer/acceptance helpers are retained separately; PROD is blocked.
+// K3s STAGE cycle with automatic acceptance. Install from reviewed source after explicit
+// live approval, together with the stage-observer node and matching helper bundles.
+// PROD stays blocked until this acceptance is live-verified.
 pipeline {
     agent { label 'registry-publisher' }
     options {
         skipDefaultCheckout(true)
         disableConcurrentBuilds()
-        timeout(time: 40, unit: 'MINUTES')
+        // Publication plus up to 15 minutes of STAGE observation.
+        timeout(time: 60, unit: 'MINUTES')
         buildDiscarder(logRotator(numToKeepStr: '30'))
     }
     parameters {
@@ -41,21 +43,45 @@ pipeline {
                 }
             }
         }
-        stage('Publish and update STAGE sequentially') {
+        stage('Publish, update and accept STAGE sequentially') {
             steps {
+                // One lock spans publication, the direct STAGE commit, observation and the receipt.
                 lock(resource: 'liora-stage-promotion') {
-                    withCredentials([
-                        usernamePassword(credentialsId: 'ghcr-write', usernameVariable: 'GHCR_USER', passwordVariable: 'GHCR_TOKEN'),
-                        usernamePassword(credentialsId: 'gitops-app', usernameVariable: 'GIT_APP_ID', passwordVariable: 'GIT_TOKEN')
-                    ]) {
-                        sh 'sh /opt/phase1-ci/publisher-action.sh'
+                    script {
+                        withCredentials([
+                            usernamePassword(credentialsId: 'ghcr-write', usernameVariable: 'GHCR_USER', passwordVariable: 'GHCR_TOKEN'),
+                            usernamePassword(credentialsId: 'gitops-app', usernameVariable: 'GIT_APP_ID', passwordVariable: 'GIT_TOKEN')
+                        ]) {
+                            sh 'sh /opt/phase1-ci/publisher-action.sh'
+                        }
+                        // Superseded candidates and publish-only requests have nothing to observe.
+                        if (params.ACTION == 'stage' && readJSON(file: 'stage-request.json').status == 'promoted') {
+                            stash name: 'stage-request', includes: 'stage-request.json'
+                            node('stage-observer') {
+                                deleteDir()
+                                try {
+                                    unstash 'stage-request'
+                                    // Read-only agent: no publisher credentials are in scope here.
+                                    sh returnStatus: true, script: 'python3 /opt/phase1-ci/stage_acceptance.py --request stage-request.json --output stage-acceptance.json'
+                                    stash name: 'stage-acceptance', includes: 'stage-acceptance.json'
+                                } finally { deleteDir() }
+                            }
+                            unstash 'stage-acceptance'
+                            // The trusted writer records both accepted and failed evidence.
+                            withCredentials([usernamePassword(credentialsId: 'gitops-app', usernameVariable: 'GIT_APP_ID', passwordVariable: 'GIT_TOKEN')]) {
+                                sh 'sh /opt/phase1-ci/publisher-action.sh accept-stage'
+                            }
+                            if (readJSON(file: 'stage-acceptance.json').status != 'accepted') {
+                                error('STAGE acceptance failed; PROD blocked, rollback remains manual')
+                            }
+                        }
                     }
                 }
             }
         }
     }
     post {
-        always { archiveArtifacts artifacts: 'artifacts/.ci-output/published-images.json,stage-request.json', allowEmptyArchive: true, fingerprint: true }
+        always { archiveArtifacts artifacts: 'artifacts/.ci-output/published-images.json,stage-request.json,stage-acceptance.json', allowEmptyArchive: true, fingerprint: true }
         cleanup { deleteDir() }
     }
 }

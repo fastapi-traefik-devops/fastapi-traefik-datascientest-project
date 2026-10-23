@@ -9,6 +9,8 @@ The normal `Jenkinsfile` runs the existing 13 functional gates on the resulting
 application main commit and exports its tested runtime image archives. The
 separate `trusted/publish` job publishes immutable images and updates only the
 STAGE overlay in the infrastructure repository; Argo CD deploys that update.
+A read-only `stage-observer` agent then checks Argo, the running image digests and
+the STAGE URL, and the publisher records the result as `acceptance.json`.
 The main job's approximately two-minute SCM poll is installed in job configuration
 only after the first controlled cycle and manual STAGE verification succeed.
 There is no nightly schedule or recurring multibranch indexing.

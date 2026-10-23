@@ -20,8 +20,11 @@ if [ "${1:-}" = accept-stage ]; then
     python3 "$helpers/promote.py" accept-stage stage-acceptance.json || exec_status=$?
     exit "$exec_status"
 fi
-: "${EXPECTED_SOURCE_SHA:?}" "${GHCR_USER:?}" "${GHCR_TOKEN:?}"
-case "${ACTION:?}" in publish-only|stage) ;; *) exit 1 ;; esac
+# Explicit exits: after the trap is set, bash-as-sh turns a failed ${VAR:?} into status 0.
+for required in EXPECTED_SOURCE_SHA GHCR_USER GHCR_TOKEN ACTION; do
+    eval "[ -n \"\${$required:-}\" ]" || { echo "$required required" >&2; exit 1; }
+done
+case "$ACTION" in publish-only|stage) ;; *) exit 1 ;; esac
 if [ "$ACTION" = stage ]; then
     # Skip obsolete candidates before publication as well as immediately before Git writes.
     latest=$(git ls-remote --exit-code https://github.com/fastapi-traefik-devops/fastapi-traefik-liora-application.git refs/heads/main)
