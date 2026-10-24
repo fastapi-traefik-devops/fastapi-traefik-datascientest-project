@@ -19,7 +19,6 @@
   "readonly_requests_per_run": 9,
   "assertions_per_run": 27,
   "successful_runs": 4,
-  "public_tls_failed_runs": 2,
   "collection_note": "Request/test definitions executed by Newman; captured DEV response examples attached afterward without changing request/test semantics.",
   "openapi_dev_sha256": "0b5bfdbd1be04136e7fec01659c73fad51662f661743d3a9930f92a03459f81a",
   "screenshots": [
@@ -67,14 +66,23 @@
     },
     {
       "path": "evidence/screenshots/08-newman-actual-results-matrix.jpg",
-      "description": "Browser viewer of genuine saved Newman runs; not Postman desktop UI.",
+      "description": "Historical technical matrix before policy clarification. Its TLS FAILED wording is superseded by the current EXPECTED BLOCK interpretation; original image preserved.",
       "captured_file_mtime_utc": "2026-10-24T14:40:24.804672+00:00",
       "sha256": "a423d75e2f5071cf5563b6b8eb9fdacfe472ebad61b3c35579a411a9caa5b24d"
+    },
+    {
+      "path": "evidence/screenshots/09-newman-expected-cloudflare-block.jpg",
+      "description": "Current policy-aware matrix: public DEV/STAGE automation is blocked as expected by owner-confirmed Cloudflare security requirements. Same original Newman captures; no API rerun.",
+      "captured_file_mtime_utc": "2026-10-24T14:59:50.356676+00:00",
+      "sha256": "2a39222d6324005051153354f8f162ec9f26ef47244770f4ab4e25de5013b31b"
     }
   ],
   "openapi_captures": {
     "openapi.dev.json": "0b5bfdbd1be04136e7fec01659c73fad51662f661743d3a9930f92a03459f81a",
     "openapi.stage-prod.json": "b8b52a8a4b8167e47b262253d0a9a860987313e62113dfc928e7db8d24633339"
   },
-  "publication_base_commit": "5243708e320b96529219bfb4a3f35fd96897ff61"
+  "publication_base_commit": "5243708e320b96529219bfb4a3f35fd96897ff61",
+  "expected_public_blocked_runs": 2,
+  "access_policy_annotation": "evidence/access-policy.json",
+  "public_capture_interpretation": "Expected restriction of unauthenticated automated public DEV/STAGE access; excluded from availability scoring. Owner-confirmed Cloudflare policy."
 }

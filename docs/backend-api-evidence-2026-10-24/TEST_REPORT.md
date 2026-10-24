@@ -4,9 +4,13 @@
 
 ## Result
 
-Four Newman runs passed: **36 successful GET requests and 108 passing assertions**.
-Two public-path runs failed before HTTP: **18 transport failures**, with 54 dependent
-assertion failures caused by missing responses. These are not 54 distinct API bugs.
+Four allowed-route Newman runs passed: **36 successful GET requests and 108 passing assertions**.
+The two unauthenticated public DEV/STAGE runs were **blocked as expected by the
+project's Cloudflare security policy**. Their raw Newman records contain 18 TLS
+transport errors and 54 dependent assertion failures because the requests never
+reached HTTP. These counters describe denied automated access, not backend defects
+or failed availability requirements. Public DEV/STAGE are excluded from API
+availability scoring; their captures are retained as security-boundary observations.
 The independently recorded address probes and interactive UI requests are additional
 requests, not included in those Newman counts.
 
@@ -16,8 +20,8 @@ requests, not included in those Newman counts.
 | STAGE | Hostname mapped per-process to HAProxy 192.168.77.240 | 9/9 | 27/27 | PASS |
 | PROD | Hostname mapped per-process to HAProxy 192.168.77.240 | 9/9 | 27/27 | PASS |
 | PROD | Normal public DNS, observed 151.115.96.5 | 9/9 | 27/27 | PASS |
-| DEV | Normal public DNS | 0/9 | 0/27 | TLS handshake failed |
-| STAGE | Normal public DNS | 0/9 | 0/27 | TLS handshake failed |
+| DEV | Unauthenticated public client via Cloudflare | 0/9 | Not applicable: access intentionally denied | EXPECTED BLOCK — security policy |
+| STAGE | Unauthenticated public client via Cloudflare | 0/9 | Not applicable: access intentionally denied | EXPECTED BLOCK — security policy |
 
 All successful runs used certificate verification. The private route preserved
 original HTTPS hostnames, HTTP Host and TLS SNI. It did not use `-k`, `insecure`,
@@ -48,7 +52,23 @@ delivery. No valid credential was supplied for this exercise; example operations
 are explicitly separate from executed evidence. The /private/users/ local-only
 helper is absent from the deployed DEV contract and is not part of the 22 operations.
 
-## Address and TLS findings
+## Intended access policy
+
+The project owner clarified on 24 October 2026 that DEV and STAGE are intentionally
+closed to unprotected external automated clients by Cloudflare bot protection.
+This restriction is a project security requirement. Postman/Newman and curl may
+be treated as bots on that path. Developers should use the internal network or
+the approved Cloudflare-protected access workflow. Public PROD remains a separately
+tested route.
+
+The recorded refusal of these unauthenticated automated clients is normal and
+consistent with that required security boundary. It is not a request to loosen
+Cloudflare protection or make DEV/STAGE publicly accessible. The owner supplied
+the policy/configuration explanation; this task did not inspect Cloudflare's
+rule configuration or event logs to independently attribute the TLS alert to a
+particular rule. Approved Cloudflare developer access was not exercised.
+
+## Address and TLS observations
 
 [Recorded probes](evidence/results/address-probes.json) identify DNS addresses,
 actual connected IPs, curl exit/status, SSL result and timestamps.
@@ -62,11 +82,10 @@ actual connected IPs, curl exit/status, SSL result and timestamps.
 - The deliberate bare-IP HAProxy request also failed its TLS handshake. Host-based
   routing needs the application hostname; this is not evidence of a backend outage.
 
-The evidence locates the DEV/STAGE failure on the public TLS path from this PC:
-private ingress routes and the backend respond successfully. It does not establish
-whether Cloudflare certificate configuration, DNS/edge routing, or another policy
-is responsible. No Cloudflare setting was changed and no global Internet outage
-is claimed.
+Private ingress routes and the backend respond successfully. Public DEV/STAGE
+blocking matches the owner's stated Cloudflare bot-protection requirement. No
+backend availability defect or Cloudflare remediation is inferred from these
+expected denials. No Cloudflare setting was changed.
 
 ## Tooling and evidence details
 
@@ -85,7 +104,11 @@ from API failures. Node's IPv4/IPv6 callback handling did not require TLS relaxa
 Eight original JPEG screenshots were captured through the actual browser:
 three health responses, protected profile and items rejections, the installed
 client overview, an unexecuted schema payload example, and a viewer of saved real
-Newman results. They are not Postman desktop screenshots. Swagger's separate
+Newman results. A ninth genuine screenshot presents the corrected policy-aware
+results matrix after the owner's clarification, using the same saved captures.
+The original matrix screenshot is preserved as historical technical output; its
+"TLS FAILED" wording is superseded by "EXPECTED BLOCK" in the current view.
+These are not Postman desktop screenshots. Swagger's separate
 "Example Value" panels are schema illustrations; only its "Server response"
 section records an executed request. No fake successful mutation screenshot exists.
 

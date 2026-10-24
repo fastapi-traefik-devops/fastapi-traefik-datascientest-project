@@ -1,13 +1,14 @@
 {
   "status": "PASS",
-  "files_checked": 43,
+  "files_checked": 45,
   "example_operations": 22,
-  "unique_genuine_screenshots": 8,
+  "unique_genuine_screenshots": 9,
   "passing_newman_runs": 4,
-  "public_tls_failed_runs": 2,
+  "expected_public_blocked_runs": 2,
   "passing_assertions": 108,
   "syntax_links_provenance_and_credential_pattern_checks": "PASS",
   "scope": "Offline evidence validation; no live API request",
-  "official_postman_v2_1_schema": "PASS",
-  "checked_utc": "2026-10-24T14:45:49.818325+00:00"
+  "checked_utc": "2026-10-24T15:00:36.865434+00:00",
+  "original_captures_collections_and_contracts_preserved": true,
+  "official_postman_v2_1_schema": "Previously validated; collections unchanged"
 }

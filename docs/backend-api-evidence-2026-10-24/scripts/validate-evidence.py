@@ -56,13 +56,17 @@ def main():
             failed+=1;require(data['route']=='public' and data['environment'] in ['dev','stage'],'Unexpected failed route')
             require(all(not e['http_status'] and e['transport_error'] for e in data['executions']),'Expected TLS transport failure missing')
     require((passed,failed,assertions)==(4,2,108),'Aggregate counts mismatch')
+    policy=json.loads((ROOT/'evidence/access-policy.json').read_text())
+    for name,annotation in policy['records'].items():
+        require(annotation['classification']=='EXPECTED_BLOCK' and annotation['availability_scoring']=='excluded','Incorrect public access policy annotation')
+        require(hashlib.sha256((ROOT/'evidence/results'/name).read_bytes()).hexdigest()==annotation['sha256'],'Original public capture changed')
     provenance=json.loads((ROOT/'evidence/provenance.json').read_text());images=list((ROOT/'evidence/screenshots').glob('*.jpg'))
-    require(len(images)==8,'Screenshot count mismatch')
+    require(len(images)==9,'Screenshot count mismatch')
     hashes=set()
     for image in images:
         with Image.open(image) as im:require(im.format=='JPEG','Not a JPEG');im.verify()
         hashes.add(hashlib.sha256(image.read_bytes()).hexdigest())
-    require(len(hashes)==8,'Duplicate screenshots')
+    require(len(hashes)==9,'Duplicate screenshots')
     for shot in provenance['screenshots']:
         require(hashlib.sha256((ROOT/shot['path']).read_bytes()).hexdigest()==shot['sha256'],'Screenshot hash mismatch')
     patterns=[rb'-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----',rb'gh[pousr]_[A-Za-z0-9]{30,}',rb'github_pat_[A-Za-z0-9_]{40,}',rb'AKIA[0-9A-Z]{16}',rb'eyJ[A-Za-z0-9_-]{15,}\.eyJ[A-Za-z0-9_-]{15,}\.[A-Za-z0-9_-]{15,}']
@@ -70,7 +74,7 @@ def main():
         require(p.suffix not in ['.dump','.tfstate','.zip','.tar','.gz'] and p.name!='kubeconfig','Sensitive/unnecessary artifact')
         require(not any(re.search(pattern,p.read_bytes()) for pattern in patterns),'Credential pattern in '+p.name)
     return {'status':'PASS','files_checked':len(files),'example_operations':len(operations),'unique_genuine_screenshots':len(images),
-            'passing_newman_runs':passed,'public_tls_failed_runs':failed,'passing_assertions':assertions,
+            'passing_newman_runs':passed,'expected_public_blocked_runs':failed,'passing_assertions':assertions,
             'syntax_links_provenance_and_credential_pattern_checks':'PASS','scope':'Offline evidence validation; no live API request'}
 
 

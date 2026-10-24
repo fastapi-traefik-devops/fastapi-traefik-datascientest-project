@@ -11,7 +11,7 @@ Start with [test results and findings](TEST_REPORT.md), the
 ## Collections
 
 - [Read-only Postman collection](collections/liora-readonly.postman_collection.json):
-  9 requests with 27 assertions per environment/route. Suitable for a live run.
+  9 requests with 27 assertions per allowed environment/route. Use internal DEV/STAGE routes or approved Cloudflare access; unauthenticated public DEV/STAGE captures are expected security denials.
 - [All backend examples](collections/liora-backend-examples.postman_collection.json):
   all 22 operations from the [captured DEV OpenAPI contract](openapi.dev.json),
   with request bodies and illustrative response examples. Its default host is
@@ -47,10 +47,17 @@ node docs/backend-api-evidence-2026-10-24/scripts/run-newman.cjs \
   dev private /tmp/liora-api-new-dev-run
 ```
 
-Use `stage` or `prod` for the other environments. `public` uses normal DNS;
+Use `stage` or `prod` for the other environments. For normal availability tests,
+use `private` for DEV/STAGE and either route for PROD. Public DEV/STAGE are
+intentionally restricted by Cloudflare bot protection; developers must work
+internally or through the approved Cloudflare-protected access workflow.
+`public` uses normal DNS;
 `private` maps only the selected hostname to `192.168.77.240` inside this process.
 Every output directory must be new and outside this evidence tree. The runner
-returns nonzero when transport or assertion checks fail. It only loads the fixed
+returns nonzero when raw transport or assertion checks fail. Unauthenticated
+public DEV/STAGE diagnostic runs are expected to return nonzero: do not use their
+raw exit code as an API availability gate or change Cloudflare to make them pass.
+It only loads the fixed
 GET collection, not the write/example collection. It follows no redirects and
 keeps TLS verification enabled.
 
@@ -63,8 +70,11 @@ The public PROD route also works with the standard Newman CLI:
 ```
 
 Normal Postman imports do not include the custom private DNS mapping. On this PC,
-public DEV/STAGE fail TLS. Use the supplied private runner/explorer to reproduce
-the recorded private tests. Do not disable SSL verification or replace the URL's
+unprotected public DEV/STAGE automated clients are intentionally blocked by
+Cloudflare. The captured TLS refusal is normal for this policy, not an API outage.
+Use the supplied private runner/explorer to reproduce the recorded internal tests,
+or use your approved Cloudflare developer access separately. Do not disable SSL
+verification or replace the URL's
 hostname with an IP. `curl --resolve` provides an equivalent one-request check:
 
 ```sh
