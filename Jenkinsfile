@@ -1,4 +1,7 @@
-// Prepared source only. Jobs remain disabled until an explicit live activation checkpoint.
+// CI for the multibranch job app-ci: main and pull requests. Gate profiles live in ci/phase1.py:
+//   pull request, nightly run on main -> "full" (all 18 gates plus GitOps validation), no publication
+//   change on main                    -> "release" (artifact, security and attestation gates), then
+//                                        trusted/publish promotes the attested images to STAGE
 pipeline {
     agent { label 'host-ci' }
     options {
@@ -8,9 +11,12 @@ pipeline {
         buildDiscarder(logRotator(numToKeepStr: '20', artifactNumToKeepStr: '2'))
         copyArtifactPermission('/trusted/publish')
     }
-    // The operator installs the main job's SCM poll only after the first live
-    // cycle passes. Keep trigger ownership in job configuration so this first
-    // controlled run cannot enable polling early. No cron or folder indexing.
+    // Declared here, so these replace any triggers set in the job UI: main polls GitHub every
+    // two minutes (Jenkins is private, no webhooks) and runs the full profile nightly.
+    triggers {
+        pollSCM(env.BRANCH_NAME == 'main' ? 'H/2 * * * *' : '')
+        cron(env.BRANCH_NAME == 'main' ? 'H 2 * * *' : '')
+    }
     stages {
         stage('Checkout') {
             steps {
@@ -18,24 +24,27 @@ pipeline {
                     def revision = checkout scm
                     env.IMAGE_SHA = revision.GIT_COMMIT
                     if (!(env.IMAGE_SHA ==~ /[0-9a-f]{40}/)) { error('Full Git SHA required') }
-                    env.PUBLISH = (env.BRANCH_NAME == 'main' && !env.CHANGE_ID) ? 'true' : 'false'
-                    currentBuild.description = "Functional CI ${env.IMAGE_SHA}; security scans deferred"
+                    def nightly = !currentBuild.getBuildCauses('hudson.triggers.TimerTrigger$TimerTriggerCause').isEmpty()
+                    env.CI_PROFILE = (env.CHANGE_ID || nightly || env.BRANCH_NAME != 'main') ? 'full' : 'release'
+                    env.PUBLISH = (env.BRANCH_NAME == 'main' && env.CI_PROFILE == 'release') ? 'true' : 'false'
+                    currentBuild.description = "Profile ${env.CI_PROFILE}${nightly ? ' (nightly)' : ''}" +
+                        "${env.PUBLISH == 'true' ? ', publishes to STAGE' : ''}"
                 }
             }
         }
-        stage('Functional gates') {
+        stage('CI gates') {
             steps {
                 script {
-                    def gates = sh(returnStdout: true, script: 'python3 ci/phase1.py steps --profile migration').trim().split('\n')
+                    def gates = sh(returnStdout: true, script: "python3 ci/phase1.py steps --profile ${env.CI_PROFILE}").trim().split('\n')
                     for (gate in gates) { stage(gate) { sh "python3 ci/phase1.py ${gate}" } }
                 }
             }
         }
-        stage('Export tested images') {
+        stage('Archive attested images') {
             when { expression { env.PUBLISH == 'true' } }
             steps {
-                sh 'python3 ci/phase1.py export-images'
-                archiveArtifacts artifacts: '.ci-output/*-ci.tar,.ci-output/candidate.json,.ci-output/source-sha.txt,.ci-output/*.xml', fingerprint: true
+                // The image-security gates saved the exact scanned archives; attest recorded them.
+                archiveArtifacts artifacts: '.ci-output/*-ci.tar,.ci-output/gates.json,.ci-output/source-sha.txt', fingerprint: true
             }
         }
         stage('Request trusted STAGE publication') {
@@ -52,7 +61,6 @@ pipeline {
         always {
             script {
                 try {
-                    if (fileExists('ci/phase1.py')) { sh 'python3 ci/phase1.py migration-report' }
                     for (report in ['backend-unit', 'backend-integration', 'frontend-tests']) {
                         if (fileExists(".ci-output/${report}.xml")) { junit ".ci-output/${report}.xml" }
                     }

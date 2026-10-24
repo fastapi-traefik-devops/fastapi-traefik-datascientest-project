@@ -37,7 +37,10 @@ fi
 export DOCKER_CONFIG="$credentials/docker"
 mkdir -p "$DOCKER_CONFIG"
 # Registry Python authenticates and removes its own private config for publication.
-python3 "$helpers/registry.py" artifacts/.ci-output --mode functional --source-job "$SOURCE_JOB" --source-build "$CI_BUILD"
+# Main is published only with a release attestation (scans included); functional-only
+# candidates are accepted solely from the manual migration checkpoint.
+case "${SOURCE_JOB:-}" in app-ci/main) mode=release ;; migration-ci) mode=functional ;; *) exit 1 ;; esac
+python3 "$helpers/registry.py" artifacts/.ci-output --mode "$mode" --source-job "$SOURCE_JOB" --source-build "$CI_BUILD"
 [ "$ACTION" != publish-only ] || exit 0
 printf '%s' "$GHCR_TOKEN" | crane auth login ghcr.io -u "$GHCR_USER" --password-stdin >/dev/null 2>&1
 python3 "$helpers/promote.py" "$ACTION" "$EXPECTED_SOURCE_SHA" --release "${RELEASE_TAG:-}"

@@ -3,22 +3,30 @@
 See [the operating guide](../infra/jenkins-host/README.md). Scripts in this directory are
 executed by Jenkins; only the trusted promotion job receives write credentials.
 
-## Existing K3s main pipeline
+## Gate profiles and the main pipeline
 
-The normal `Jenkinsfile` runs the existing 13 functional gates on the resulting
-application main commit and exports its tested runtime image archives. The
-separate `trusted/publish` job publishes immutable images and updates only the
-STAGE overlay in the infrastructure repository; Argo CD deploys that update.
-A read-only `stage-observer` agent then checks Argo, the running image digests and
-the STAGE URL, and the publisher records the result as `acceptance.json`.
-The main job's approximately two-minute SCM poll is installed in job configuration
-only after the first controlled cycle and manual STAGE verification succeed.
-There is no nightly schedule or recurring multibranch indexing.
+Gates are defined once in `phase1.py`; the `Jenkinsfile` picks the profile:
 
-Application PRs run the same functional tests without exporting or publishing.
-Manual DEV and the blocked PROD path are separate: PROD cannot be enabled until
-the agreed automatic STAGE acceptance gate is implemented and verified. Images
-must never be rebuilt for PROD. See [publication details](PUBLICATION.md) and the
+| Trigger | Profile | Publishes |
+| --- | --- | --- |
+| Pull request | `full`: all 18 gates plus `gitops` | no |
+| Nightly on main (`H 2 * * *`) | `full` | no |
+| New commit on main (SCM poll `H/2`) | `release`: artifact, security and image gates, then `attest` | yes |
+
+Source-level tests (lint, unit, integration, e2e) already passed on the pull request for the
+same tree, so `release` skips them and re-verifies what gets published: secrets, dependency
+audits, image builds, non-root smoke tests and Trivy, recorded by `attest` in `gates.json`.
+The `gitops` gate validates the current infrastructure `main` overlays with this change's
+promotion validator, so a new operator kind or CRD fails a pull request instead of STAGE.
+Both triggers are declared in the `Jenkinsfile`, which replaces triggers set in the job UI.
+
+The separate `trusted/publish` job accepts main builds only with a release attestation,
+publishes immutable images and updates only the STAGE overlay in the infrastructure
+repository; Argo CD deploys that update. A read-only `stage-observer` agent then checks
+Argo, the running image digests and the STAGE URL, and the publisher records the result
+as `acceptance.json`. Functional-only candidates are accepted solely from the manual
+`migration-ci` checkpoint below. PROD stays blocked until acceptance is verified; images
+are never rebuilt for PROD. See [publication details](PUBLICATION.md) and the
 [explicit archive contract](ARTIFACTS.md).
 
 ## Manual K3s migration checkpoint

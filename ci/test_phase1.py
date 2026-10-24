@@ -46,6 +46,25 @@ class ProfileTests(unittest.TestCase):
         self.assertEqual(tuple(output.split()), PROFILES["release"])
 
 
+class GitopsGateTests(unittest.TestCase):
+    def test_gitops_validates_a_fresh_infrastructure_main_checkout(self):
+        calls = []
+        with tempfile.TemporaryDirectory() as root:
+            (Path(root) / "ci").mkdir()
+            ci = phase1.CI.__new__(phase1.CI)
+            ci.root, ci.state = Path(root), {"passed": []}
+            ci.state_file = Path(root) / "state.json"
+            ci.image = lambda prefix: prefix
+            with patch.object(phase1, "run", side_effect=lambda *a, **k: calls.append((a, k.get("cwd")))):
+                ci.step("gitops")
+        clone, validate = calls[0], calls[1]
+        self.assertEqual(clone[0][:3], ("git", "clone", "--quiet"))
+        self.assertIn(phase1.INFRASTRUCTURE_REPO, clone[0])
+        self.assertEqual(validate[0], ("sh", str(Path(root) / "ci/validate.sh")))
+        self.assertEqual(str(validate[1]), clone[0][-1])
+        self.assertIn("gitops", ci.state["passed"])
+
+
 class AttestTests(unittest.TestCase):
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory()

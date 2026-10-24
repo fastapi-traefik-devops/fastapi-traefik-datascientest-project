@@ -1,19 +1,15 @@
-# Phase 9 initial cycle and retained target work
+# Publication and STAGE promotion
 
-Local implementation only. Keep all Jenkins jobs, polling, schedules, publication
-and deployment disabled until the operator explicitly approves a live checkpoint.
-No security scans are added or run in this educational migration increment.
+Main publishes only release-attested images. The `Jenkinsfile` runs the `release` profile on
+each new main commit (security scans included) and archives the scanned image archives with
+`gates.json`; `trusted/publish` validates that attestation (`registry.py --mode release`)
+before publishing. Pull requests and the nightly main run use the `full` profile and never
+publish. Both the two-minute SCM poll and the nightly cron are declared in the `Jenkinsfile`.
+See [the CI README](README.md) for the profile table.
 
-The regular Jenkinsfile runs all 13 existing functional gates on the resulting
-checked-out main commit, exports those exact runtime images, and requests the
-trusted publisher only for main. PR builds do not export/publish. The prepared
-main job uses one SCM poll (`H/2 * * * *`), with no nightly cron, webhook
-or recurring multibranch indexing. The operator installs it in the existing job
-configuration only after the first controlled live cycle passes; the Jenkinsfile
-does not enable it during that first run. `Jenkinsfile.migration` retains the inert
-manual build by default;
+The functional-only contract below remains for the manual `Jenkinsfile.migration`
+checkpoint (`SOURCE_JOB=migration-ci`) and is rejected for `app-ci/main`.
 `EXPORT_IMAGES=true` is an explicit archive-only checkpoint, with no publication.
-Old build #2 cannot qualify: it has neither archives nor the candidate contract.
 
 `candidate.json` records the exact SHA, allowlisted source job/build, successful
 functional gates, archive/report SHA256 and all seven deferred steps, with
