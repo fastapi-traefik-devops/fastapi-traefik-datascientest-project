@@ -1,0 +1,80 @@
+{
+  "date": "2026-10-24",
+  "timezone": "Europe/Tirane",
+  "source_application_commit": "f96cb415f0d74482496f8566a76a9356e9973e21",
+  "source_repo": "https://github.com/fastapi-traefik-devops/fastapi-traefik-liora-application",
+  "origin": "local Linux PC",
+  "tools": {
+    "postman_snap": "8.12.7 revision 201, already installed",
+    "newman": "6.2.2 installed locally",
+    "swagger_ui_dist": "5.34.0 installed locally",
+    "node": "v20.5.1",
+    "python": "3.12.3"
+  },
+  "private_route": "192.168.77.240; per-process DNS override; host/SNI and TLS verification retained",
+  "live_writes_executed": false,
+  "valid_credentials_used": false,
+  "collection_format": "2.1.0",
+  "example_operations": 22,
+  "readonly_requests_per_run": 9,
+  "assertions_per_run": 27,
+  "successful_runs": 4,
+  "public_tls_failed_runs": 2,
+  "collection_note": "Request/test definitions executed by Newman; captured DEV response examples attached afterward without changing request/test semantics.",
+  "openapi_dev_sha256": "0b5bfdbd1be04136e7fec01659c73fad51662f661743d3a9930f92a03459f81a",
+  "screenshots": [
+    {
+      "path": "evidence/screenshots/01-api-client-overview.jpg",
+      "description": "Installed Swagger UI with the public DEV schema; no execution claim.",
+      "captured_file_mtime_utc": "2026-10-24T14:38:32.189152+00:00",
+      "sha256": "a6383c142cd0935bd327c7011d55a76eb5dac10ee0f2e3912f352dcefde26575"
+    },
+    {
+      "path": "evidence/screenshots/02-dev-health-live-200.jpg",
+      "description": "Actual DEV GET health response, 200 and JSON true.",
+      "captured_file_mtime_utc": "2026-10-24T14:39:06.457001+00:00",
+      "sha256": "42e37ecb3d50d2cd911552456365166404d1e8fa2ee6cab1a5b84c1034d0b93e"
+    },
+    {
+      "path": "evidence/screenshots/03-stage-health-live-200.jpg",
+      "description": "Actual STAGE GET health response, 200 and JSON true.",
+      "captured_file_mtime_utc": "2026-10-24T14:39:23.129929+00:00",
+      "sha256": "9354208883a2c1fb5d846e593e461b8c4b335394e21dd31986b87147911293a4"
+    },
+    {
+      "path": "evidence/screenshots/04-prod-health-live-200.jpg",
+      "description": "Actual PROD GET health response, 200 and JSON true.",
+      "captured_file_mtime_utc": "2026-10-24T14:39:35.061878+00:00",
+      "sha256": "25f19e7fc4361b310fa26c171cd5634ed09283ccb9ccc3bd6dc797175d3df322"
+    },
+    {
+      "path": "evidence/screenshots/05-protected-profile-live-401.jpg",
+      "description": "Actual PROD anonymous profile request rejected with 401.",
+      "captured_file_mtime_utc": "2026-10-24T14:40:08.687738+00:00",
+      "sha256": "707bde117c5bbf5e3337c23b901f43c777cc74727658f8fd453c041fe394213c"
+    },
+    {
+      "path": "evidence/screenshots/06-protected-items-live-401.jpg",
+      "description": "Actual PROD anonymous item list rejected with 401.",
+      "captured_file_mtime_utc": "2026-10-24T14:40:17.631701+00:00",
+      "sha256": "e0979797a6f38f0b330f7e6d79dc0aff661d106a6a190f831be22e6212ff9d88"
+    },
+    {
+      "path": "evidence/screenshots/07-item-payload-example-not-executed.jpg",
+      "description": "Schema-derived create-item payload example. POST was not submitted.",
+      "captured_file_mtime_utc": "2026-10-24T14:41:11.809486+00:00",
+      "sha256": "1274de3611f850d1227ffe4b24e272700977df045ee717b9a02e4ea2e2c3775c"
+    },
+    {
+      "path": "evidence/screenshots/08-newman-actual-results-matrix.jpg",
+      "description": "Browser viewer of genuine saved Newman runs; not Postman desktop UI.",
+      "captured_file_mtime_utc": "2026-10-24T14:40:24.804672+00:00",
+      "sha256": "a423d75e2f5071cf5563b6b8eb9fdacfe472ebad61b3c35579a411a9caa5b24d"
+    }
+  ],
+  "openapi_captures": {
+    "openapi.dev.json": "0b5bfdbd1be04136e7fec01659c73fad51662f661743d3a9930f92a03459f81a",
+    "openapi.stage-prod.json": "b8b52a8a4b8167e47b262253d0a9a860987313e62113dfc928e7db8d24633339"
+  },
+  "publication_base_commit": "5243708e320b96529219bfb4a3f35fd96897ff61"
+}

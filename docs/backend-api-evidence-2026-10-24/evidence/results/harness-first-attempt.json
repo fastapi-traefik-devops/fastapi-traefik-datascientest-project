@@ -1,0 +1,9 @@
+{
+  "status": "FAILED LOCAL HARNESS \u2014 corrected before successful rerun",
+  "error": "Invalid IP address: undefined",
+  "cause": "Node 20 may request an array of lookup results when options.all=true; custom DNS adapter initially returned a single address.",
+  "fix": "Return [{address, family}] when options.all is requested; preserve normal dns.lookup for public routes.",
+  "started_utc": "2026-10-24T14:36:01.887Z",
+  "finished_utc": "2026-10-24T14:36:03.736Z",
+  "http_responses_received": 0
+}

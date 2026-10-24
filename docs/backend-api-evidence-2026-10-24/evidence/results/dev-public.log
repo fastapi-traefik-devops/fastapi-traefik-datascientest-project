@@ -1,0 +1,56 @@
+newman
+
+Liora FastAPI — read-only live checks
+
+❏ Read-only live checks
+↳ Health — backend is responding
+  GET https://dev.liora.aprt.info/api/v1/utils/health-check/ [errored]
+     write EPROTO 408C6D0CD8790000:error:0A000410:SSL routines:ssl3_read_bytes:sslv3 alert handshake failure:../deps/openssl/openssl/ssl/record/rec_layer_s3.c:1586:SSL alert number 40
+
+  2. Expected HTTP 200
+  3. JSON response
+  4. Expected response body
+
+↳ OpenAPI — public backend contract
+  GET https://dev.liora.aprt.info/api/v1/openapi.json [errored]
+     write EPROTO 408C6D0CD8790000:error:0A000410:SSL routines:ssl3_read_bytes:sslv3 alert handshake failure:../deps/openssl/openssl/ssl/record/rec_layer_s3.c:1586:SSL alert number 40
+
+  6. Expected HTTP 200
+  7. JSON response
+  8. OpenAPI contract has users, items and login
+
+↳ Users — unauthenticated list
+  GET https://dev.liora.aprt.info/api/v1/users/ [errored]
+     write EPROTO 408C6D0CD8790000:error:0A000410:SSL routines:ssl3_read_bytes:sslv3 alert handshake failure:../deps/openssl/openssl/ssl/record/rec_layer_s3.c:1586:SSL alert number 40
+
+ 10. Expected HTTP 401
+ 11. JSON response
+ 12. Expected response body
+
+↳ Users — unauthenticated profile
+  GET https://dev.liora.aprt.info/api/v1/users/me [errored]
+     write EPROTO 408C6D0CD8790000:error:0A000410:SSL routines:ssl3_read_bytes:sslv3 alert handshake failure:../deps/openssl/openssl/ssl/record/rec_layer_s3.c:1586:SSL alert number 40
+
+ 14. Expected HTTP 401
+ 15. JSON response
+ 16. Expected response body
+
+↳ Users — unauthenticated by ID
+  GET https://dev.liora.aprt.info/api/v1/users/00000000-0000-4000-8000-000000000000 [errored]
+     write EPROTO 408C6D0CD8790000:error:0A000410:SSL routines:ssl3_read_bytes:sslv3 alert handshake failure:../deps/openssl/openssl/ssl/record/rec_layer_s3.c:1586:SSL alert number 40
+
+ 18. Expected HTTP 401
+ 19. JSON response
+ 20. Expected response body
+
+↳ Items — unauthenticated list
+  GET https://dev.liora.aprt.info/api/v1/items/ [errored]
+     write EPROTO 408C6D0CD8790000:error:0A000410:SSL routines:ssl3_read_bytes:sslv3 alert handshake failure:../deps/openssl/openssl/ssl/record/rec_layer_s3.c:1586:SSL alert number 40
+
+ 22. Expected HTTP 401
+ 23. JSON response
+ 24. Expected response body
+
+↳ Items — unauthenticated by ID
+  GET https://dev.liora.aprt.info/api/v1/items/00000000-0000-4000-8000-000000000000 [errored]
+[Verbose repeated assertion stack omitted; see structured dev-public.json.]

@@ -1,0 +1,332 @@
+{
+  "started_utc": "2026-10-24T14:36:55.171Z",
+  "finished_utc": "2026-10-24T14:36:58.141Z",
+  "origin": "user local PC",
+  "environment": "stage",
+  "route": "public",
+  "host": "stage.liora.aprt.info",
+  "connect_ip": "normal DNS",
+  "tls_verification": true,
+  "newman_version": "6.2.2",
+  "collection": "liora-readonly.postman_collection.json",
+  "stats": {
+    "iterations": {
+      "total": 1,
+      "pending": 0,
+      "failed": 0
+    },
+    "items": {
+      "total": 9,
+      "pending": 0,
+      "failed": 0
+    },
+    "scripts": {
+      "total": 9,
+      "pending": 0,
+      "failed": 0
+    },
+    "prerequests": {
+      "total": 9,
+      "pending": 0,
+      "failed": 0
+    },
+    "requests": {
+      "total": 9,
+      "pending": 0,
+      "failed": 9
+    },
+    "tests": {
+      "total": 9,
+      "pending": 0,
+      "failed": 0
+    },
+    "assertions": {
+      "total": 27,
+      "pending": 0,
+      "failed": 27
+    },
+    "testScripts": {
+      "total": 9,
+      "pending": 0,
+      "failed": 0
+    },
+    "prerequestScripts": {
+      "total": 0,
+      "pending": 0,
+      "failed": 0
+    }
+  },
+  "failure_count": 36,
+  "executions": [
+    {
+      "request": "Health \u2014 backend is responding",
+      "method": "GET",
+      "url": "https://stage.liora.aprt.info/api/v1/utils/health-check/",
+      "http_status": null,
+      "response_ms": null,
+      "response_body": null,
+      "response_headers": [],
+      "assertions": [
+        {
+          "name": "Expected HTTP 200",
+          "passed": false,
+          "error": "expected PostmanResponse{ \u2026(5) } to have property 'code'"
+        },
+        {
+          "name": "JSON response",
+          "passed": false,
+          "error": "the given combination of arguments (undefined and string) is invalid for this assertion. You can use an array, a map, an object, a set, a string, or a weakset instead of a string"
+        },
+        {
+          "name": "Expected response body",
+          "passed": false,
+          "error": "\"undefined\" is not valid JSON"
+        }
+      ],
+      "transport_error": {
+        "code": "EPROTO",
+        "message": "write EPROTO 40AC6E6B1D700000:error:0A000410:SSL routines:ssl3_read_bytes:sslv3 alert handshake failure:../deps/openssl/openssl/ssl/record/rec_layer_s3.c:1586:SSL alert number 40\n"
+      }
+    },
+    {
+      "request": "OpenAPI \u2014 public backend contract",
+      "method": "GET",
+      "url": "https://stage.liora.aprt.info/api/v1/openapi.json",
+      "http_status": null,
+      "response_ms": null,
+      "response_body": null,
+      "response_headers": [],
+      "assertions": [
+        {
+          "name": "Expected HTTP 200",
+          "passed": false,
+          "error": "expected PostmanResponse{ \u2026(5) } to have property 'code'"
+        },
+        {
+          "name": "JSON response",
+          "passed": false,
+          "error": "the given combination of arguments (undefined and string) is invalid for this assertion. You can use an array, a map, an object, a set, a string, or a weakset instead of a string"
+        },
+        {
+          "name": "OpenAPI contract has users, items and login",
+          "passed": false,
+          "error": "\"undefined\" is not valid JSON"
+        }
+      ],
+      "transport_error": {
+        "code": "EPROTO",
+        "message": "write EPROTO 40AC6E6B1D700000:error:0A000410:SSL routines:ssl3_read_bytes:sslv3 alert handshake failure:../deps/openssl/openssl/ssl/record/rec_layer_s3.c:1586:SSL alert number 40\n"
+      }
+    },
+    {
+      "request": "Users \u2014 unauthenticated list",
+      "method": "GET",
+      "url": "https://stage.liora.aprt.info/api/v1/users/",
+      "http_status": null,
+      "response_ms": null,
+      "response_body": null,
+      "response_headers": [],
+      "assertions": [
+        {
+          "name": "Expected HTTP 401",
+          "passed": false,
+          "error": "expected PostmanResponse{ \u2026(5) } to have property 'code'"
+        },
+        {
+          "name": "JSON response",
+          "passed": false,
+          "error": "the given combination of arguments (undefined and string) is invalid for this assertion. You can use an array, a map, an object, a set, a string, or a weakset instead of a string"
+        },
+        {
+          "name": "Expected response body",
+          "passed": false,
+          "error": "\"undefined\" is not valid JSON"
+        }
+      ],
+      "transport_error": {
+        "code": "EPROTO",
+        "message": "write EPROTO 40AC6E6B1D700000:error:0A000410:SSL routines:ssl3_read_bytes:sslv3 alert handshake failure:../deps/openssl/openssl/ssl/record/rec_layer_s3.c:1586:SSL alert number 40\n"
+      }
+    },
+    {
+      "request": "Users \u2014 unauthenticated profile",
+      "method": "GET",
+      "url": "https://stage.liora.aprt.info/api/v1/users/me",
+      "http_status": null,
+      "response_ms": null,
+      "response_body": null,
+      "response_headers": [],
+      "assertions": [
+        {
+          "name": "Expected HTTP 401",
+          "passed": false,
+          "error": "expected PostmanResponse{ \u2026(5) } to have property 'code'"
+        },
+        {
+          "name": "JSON response",
+          "passed": false,
+          "error": "the given combination of arguments (undefined and string) is invalid for this assertion. You can use an array, a map, an object, a set, a string, or a weakset instead of a string"
+        },
+        {
+          "name": "Expected response body",
+          "passed": false,
+          "error": "\"undefined\" is not valid JSON"
+        }
+      ],
+      "transport_error": {
+        "code": "EPROTO",
+        "message": "write EPROTO 40AC6E6B1D700000:error:0A000410:SSL routines:ssl3_read_bytes:sslv3 alert handshake failure:../deps/openssl/openssl/ssl/record/rec_layer_s3.c:1586:SSL alert number 40\n"
+      }
+    },
+    {
+      "request": "Users \u2014 unauthenticated by ID",
+      "method": "GET",
+      "url": "https://stage.liora.aprt.info/api/v1/users/00000000-0000-4000-8000-000000000000",
+      "http_status": null,
+      "response_ms": null,
+      "response_body": null,
+      "response_headers": [],
+      "assertions": [
+        {
+          "name": "Expected HTTP 401",
+          "passed": false,
+          "error": "expected PostmanResponse{ \u2026(5) } to have property 'code'"
+        },
+        {
+          "name": "JSON response",
+          "passed": false,
+          "error": "the given combination of arguments (undefined and string) is invalid for this assertion. You can use an array, a map, an object, a set, a string, or a weakset instead of a string"
+        },
+        {
+          "name": "Expected response body",
+          "passed": false,
+          "error": "\"undefined\" is not valid JSON"
+        }
+      ],
+      "transport_error": {
+        "code": "EPROTO",
+        "message": "write EPROTO 40AC6E6B1D700000:error:0A000410:SSL routines:ssl3_read_bytes:sslv3 alert handshake failure:../deps/openssl/openssl/ssl/record/rec_layer_s3.c:1586:SSL alert number 40\n"
+      }
+    },
+    {
+      "request": "Items \u2014 unauthenticated list",
+      "method": "GET",
+      "url": "https://stage.liora.aprt.info/api/v1/items/",
+      "http_status": null,
+      "response_ms": null,
+      "response_body": null,
+      "response_headers": [],
+      "assertions": [
+        {
+          "name": "Expected HTTP 401",
+          "passed": false,
+          "error": "expected PostmanResponse{ \u2026(5) } to have property 'code'"
+        },
+        {
+          "name": "JSON response",
+          "passed": false,
+          "error": "the given combination of arguments (undefined and string) is invalid for this assertion. You can use an array, a map, an object, a set, a string, or a weakset instead of a string"
+        },
+        {
+          "name": "Expected response body",
+          "passed": false,
+          "error": "\"undefined\" is not valid JSON"
+        }
+      ],
+      "transport_error": {
+        "code": "EPROTO",
+        "message": "write EPROTO 40AC6E6B1D700000:error:0A000410:SSL routines:ssl3_read_bytes:sslv3 alert handshake failure:../deps/openssl/openssl/ssl/record/rec_layer_s3.c:1586:SSL alert number 40\n"
+      }
+    },
+    {
+      "request": "Items \u2014 unauthenticated by ID",
+      "method": "GET",
+      "url": "https://stage.liora.aprt.info/api/v1/items/00000000-0000-4000-8000-000000000000",
+      "http_status": null,
+      "response_ms": null,
+      "response_body": null,
+      "response_headers": [],
+      "assertions": [
+        {
+          "name": "Expected HTTP 401",
+          "passed": false,
+          "error": "expected PostmanResponse{ \u2026(5) } to have property 'code'"
+        },
+        {
+          "name": "JSON response",
+          "passed": false,
+          "error": "the given combination of arguments (undefined and string) is invalid for this assertion. You can use an array, a map, an object, a set, a string, or a weakset instead of a string"
+        },
+        {
+          "name": "Expected response body",
+          "passed": false,
+          "error": "\"undefined\" is not valid JSON"
+        }
+      ],
+      "transport_error": {
+        "code": "EPROTO",
+        "message": "write EPROTO 40AC6E6B1D700000:error:0A000410:SSL routines:ssl3_read_bytes:sslv3 alert handshake failure:../deps/openssl/openssl/ssl/record/rec_layer_s3.c:1586:SSL alert number 40\n"
+      }
+    },
+    {
+      "request": "Users \u2014 invalid bearer is rejected",
+      "method": "GET",
+      "url": "https://stage.liora.aprt.info/api/v1/users/me",
+      "http_status": null,
+      "response_ms": null,
+      "response_body": null,
+      "response_headers": [],
+      "assertions": [
+        {
+          "name": "Expected HTTP 403",
+          "passed": false,
+          "error": "expected PostmanResponse{ \u2026(5) } to have property 'code'"
+        },
+        {
+          "name": "JSON response",
+          "passed": false,
+          "error": "the given combination of arguments (undefined and string) is invalid for this assertion. You can use an array, a map, an object, a set, a string, or a weakset instead of a string"
+        },
+        {
+          "name": "Expected response body",
+          "passed": false,
+          "error": "\"undefined\" is not valid JSON"
+        }
+      ],
+      "transport_error": {
+        "code": "EPROTO",
+        "message": "write EPROTO 40AC6E6B1D700000:error:0A000410:SSL routines:ssl3_read_bytes:sslv3 alert handshake failure:../deps/openssl/openssl/ssl/record/rec_layer_s3.c:1586:SSL alert number 40\n"
+      }
+    },
+    {
+      "request": "Unknown API route \u2014 JSON 404",
+      "method": "GET",
+      "url": "https://stage.liora.aprt.info/api/v1/route-does-not-exist",
+      "http_status": null,
+      "response_ms": null,
+      "response_body": null,
+      "response_headers": [],
+      "assertions": [
+        {
+          "name": "Expected HTTP 404",
+          "passed": false,
+          "error": "expected PostmanResponse{ \u2026(5) } to have property 'code'"
+        },
+        {
+          "name": "JSON response",
+          "passed": false,
+          "error": "the given combination of arguments (undefined and string) is invalid for this assertion. You can use an array, a map, an object, a set, a string, or a weakset instead of a string"
+        },
+        {
+          "name": "Expected response body",
+          "passed": false,
+          "error": "\"undefined\" is not valid JSON"
+        }
+      ],
+      "transport_error": {
+        "code": "EPROTO",
+        "message": "write EPROTO 40AC6E6B1D700000:error:0A000410:SSL routines:ssl3_read_bytes:sslv3 alert handshake failure:../deps/openssl/openssl/ssl/record/rec_layer_s3.c:1586:SSL alert number 40\n"
+      }
+    }
+  ]
+}
