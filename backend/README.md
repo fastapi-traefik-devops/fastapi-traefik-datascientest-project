@@ -25,12 +25,24 @@ Run the regression tests against a disposable PostgreSQL database using the
 normal backend test setup:
 
 ```console
-pytest app/tests/scripts/test_db_connections.py
+pytest app/tests/integration/test_db_connections.py
 ```
 
 These tests terminate only their own database connections to reproduce stale
 idle connections and interrupted transactions. As with the other backend tests,
 use a test database, not a deployed application database.
+
+Phase 1 classifies `app/tests/scripts` as unit tests, which run without a
+database. The integration selection includes `app/tests/api`, `app/tests/crud`
+and `app/tests/integration`; CI prepares a disposable database and runs the
+existing prestart/migrations before that selection. To run both CI selections
+from the repository root:
+
+```console
+python3 ci/phase1.py backend-dependencies
+python3 ci/phase1.py backend-unit
+python3 ci/phase1.py backend-integration
+```
 
 ## General Workflow
 
