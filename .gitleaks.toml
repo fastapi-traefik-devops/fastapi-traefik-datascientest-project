@@ -22,3 +22,16 @@ condition = "AND"
 paths = ['''(?:^|/)infra/jenkins-host/plugins\.lock\.txt$''']
 regexTarget = "line"
 regexes = ['''^\s*[a-z][a-z0-9-]+:[0-9][0-9A-Za-z._-]*\s*$''']
+
+# These API test artifacts use SHA-256 checksums to verify captured evidence.
+# The generic-api-key heuristic incorrectly identifies some digest values as
+# credentials. Exempt only JSON lines consisting entirely of a 64-digit hex
+# checksum in the evidence files listed below; retain all other secret rules.
+# The evidence validator independently checks these hashes against the files.
+[[allowlists]]
+description = "Verified SHA-256 digest fields in October 2026 API evidence"
+targetRules = ["generic-api-key"]
+condition = "AND"
+paths = ['''(?:^|/)docs/backend-api-evidence-2026-10-24/evidence/(?:provenance|access-policy|results/(?:dev|stage|prod)-(?:private|public))\.json$''']
+regexTarget = "line"
+regexes = ['''^\s*"(?:sha256|openapi_dev_sha256|openapi_response_sha256)":\s*"[a-f0-9]{64}"\s*,?\s*$''']
