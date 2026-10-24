@@ -35,6 +35,16 @@ class ProfileTests(unittest.TestCase):
         self.assertNotIn("gitops", PROFILES["migration"])
         self.assertFalse(RELEASE_GATES <= set(PROFILES["migration"]))
 
+    def test_temporary_pr_profile_skips_only_slow_tests(self):
+        self.assertEqual(set(PROFILES["full"]) - set(PROFILES["pr"]), {"backend-integration", "frontend-tests"})
+        self.assertTrue(RELEASE_GATES <= set(PROFILES["pr"]))
+        self.assertIn("backend-unit", PROFILES["pr"])
+
+    def test_dev_profile_matches_release_without_source_tests(self):
+        self.assertEqual(PROFILES["dev"], PROFILES["release"])
+        for gate in ("backend-lint", "backend-unit", "frontend-lint", "frontend-build"):
+            self.assertNotIn(gate, PROFILES["dev"])
+
     def test_profiles_only_use_known_steps(self):
         for steps in PROFILES.values():
             self.assertTrue(set(steps) <= {*STEPS, "gitops"})
@@ -44,6 +54,25 @@ class ProfileTests(unittest.TestCase):
         output = subprocess.check_output(["python3", "-B", str(ROOT / "ci/phase1.py"), "steps", "--profile", "release"],
                                          text=True)
         self.assertEqual(tuple(output.split()), PROFILES["release"])
+
+
+class GitopsGateTests(unittest.TestCase):
+    def test_gitops_validates_a_fresh_infrastructure_main_checkout(self):
+        calls = []
+        with tempfile.TemporaryDirectory() as root:
+            (Path(root) / "ci").mkdir()
+            ci = phase1.CI.__new__(phase1.CI)
+            ci.root, ci.state = Path(root), {"passed": []}
+            ci.state_file = Path(root) / "state.json"
+            ci.image = lambda prefix: prefix
+            with patch.object(phase1, "run", side_effect=lambda *a, **k: calls.append((a, k.get("cwd")))):
+                ci.step("gitops")
+        clone, validate = calls[0], calls[1]
+        self.assertEqual(clone[0][:3], ("git", "clone", "--quiet"))
+        self.assertIn(phase1.INFRASTRUCTURE_REPO, clone[0])
+        self.assertEqual(validate[0], ("sh", str(Path(root) / "ci/validate.sh")))
+        self.assertEqual(str(validate[1]), clone[0][-1])
+        self.assertIn("gitops", ci.state["passed"])
 
 
 class AttestTests(unittest.TestCase):

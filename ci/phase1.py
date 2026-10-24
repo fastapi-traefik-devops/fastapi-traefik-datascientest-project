@@ -16,6 +16,8 @@ import time
 import xml.etree.ElementTree as ET
 
 ROOT = Path(__file__).resolve().parents[1]
+# Read-only source of the deployment overlays checked by the "gitops" gate.
+INFRASTRUCTURE_REPO = "https://github.com/fastapi-traefik-devops/fastapi-traefik-liora-infrastructure.git"
 STEPS = (
     "config", "secrets", "backend-dependencies", "backend-lint", "backend-unit",
     "backend-integration", "frontend-dependencies", "frontend-lint", "frontend-build",
@@ -44,6 +46,12 @@ PROFILES = {
         "frontend-image-security", "attest",
     ),
 }
+# TEMPORARY (2026-10-24): pull requests skip the slow integration and e2e tests to speed up CI
+# setup; the nightly "full" run still executes them. Remove "pr" to return PRs to "full".
+SKIPPED_ON_PR = ("backend-integration", "frontend-tests")
+PROFILES["pr"] = tuple(step for step in PROFILES["full"] if step not in SKIPPED_ON_PR)
+# Manual DEV build of any branch: same gates as a main release (source tests belong to the PR).
+PROFILES["dev"] = PROFILES["release"]
 # The publisher refuses an attestation that lacks any of these.
 RELEASE_GATES = frozenset(PROFILES["release"]) - {"attest"}
 TEST_REPORTS = {"backend-unit": "backend-unit.xml", "backend-integration": "backend-integration.xml",
@@ -297,7 +305,11 @@ class CI:
         elif name in ("backend-image-security", "frontend-image-security"):
             self.scan_image(name.removesuffix("-image-security"))
         elif name == "gitops":
-            run("sh", str(self.root / "ci/validate.sh"), cwd=self.root)
+            # Deployment overlays live in the infrastructure repository. Validate its current main
+            # with this change's promotion validator, so new operator kinds fail here, not in STAGE.
+            with tempfile.TemporaryDirectory(prefix="phase1-infra-") as infra:
+                run("git", "clone", "--quiet", "--depth", "1", "--branch", "main", INFRASTRUCTURE_REPO, infra)
+                run("sh", str(self.root / "ci/validate.sh"), cwd=Path(infra))
             run("sh", str(self.root / "ci/validate-platform.sh"), cwd=self.root)
             run("python3", "-B", "-m", "unittest", "discover", "-s", str(self.root / "ci"), "-p", "test_*.py")
         elif name == "attest":
