@@ -40,10 +40,10 @@ class ProfileTests(unittest.TestCase):
         self.assertTrue(RELEASE_GATES <= set(PROFILES["pr"]))
         self.assertIn("backend-unit", PROFILES["pr"])
 
-    def test_dev_profile_attests_pr_gates_for_publication(self):
-        self.assertEqual(PROFILES["dev"][-1], "attest")
-        self.assertTrue(RELEASE_GATES <= set(PROFILES["dev"]))
-        self.assertNotIn("gitops", PROFILES["dev"])
+    def test_dev_profile_matches_release_without_source_tests(self):
+        self.assertEqual(PROFILES["dev"], PROFILES["release"])
+        for gate in ("backend-lint", "backend-unit", "frontend-lint", "frontend-build"):
+            self.assertNotIn(gate, PROFILES["dev"])
 
     def test_profiles_only_use_known_steps(self):
         for steps in PROFILES.values():

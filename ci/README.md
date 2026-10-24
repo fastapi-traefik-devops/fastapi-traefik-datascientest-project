@@ -12,7 +12,7 @@ Gates are defined once in `phase1.py`; the `Jenkinsfile` picks the profile:
 | Pull request | `pr`: **temporarily** `full` without `backend-integration` and `frontend-tests` | no |
 | Nightly on main (`H 2 * * *`) | `full`: all 18 gates plus `gitops` | no |
 | New commit on main (SCM poll `H/2`) | `release`: artifact, security and image gates, then `attest` | yes, to STAGE |
-| Manual job `dev-build` (`BRANCH` parameter, `Jenkinsfile.dev`) | `dev`: the `pr` gates plus `attest` | yes, to DEV |
+| Manual job `dev-build` (`BRANCH` parameter, `Jenkinsfile.dev`) | `dev`: same gates as `release` (no source tests; they run on the PR) | yes, to DEV |
 
 `dev-build` builds the real head commit of any branch, attests it like a release and asks
 `trusted/publish` (`ACTION=dev`) to publish the scanned images and commit them directly to the

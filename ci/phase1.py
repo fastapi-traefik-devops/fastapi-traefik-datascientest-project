@@ -50,8 +50,8 @@ PROFILES = {
 # setup; the nightly "full" run still executes them. Remove "pr" to return PRs to "full".
 SKIPPED_ON_PR = ("backend-integration", "frontend-tests")
 PROFILES["pr"] = tuple(step for step in PROFILES["full"] if step not in SKIPPED_ON_PR)
-# Manual DEV build of any branch: the PR gates without gitops, attested like a release.
-PROFILES["dev"] = (*(step for step in PROFILES["pr"] if step != "gitops"), "attest")
+# Manual DEV build of any branch: same gates as a main release (source tests belong to the PR).
+PROFILES["dev"] = PROFILES["release"]
 # The publisher refuses an attestation that lacks any of these.
 RELEASE_GATES = frozenset(PROFILES["release"]) - {"attest"}
 TEST_REPORTS = {"backend-unit": "backend-unit.xml", "backend-integration": "backend-integration.xml",
