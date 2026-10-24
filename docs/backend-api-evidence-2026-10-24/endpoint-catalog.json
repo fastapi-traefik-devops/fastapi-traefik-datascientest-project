@@ -1,0 +1,178 @@
+[
+  {
+    "method": "POST",
+    "path": "/api/v1/login/access-token",
+    "tag": "login",
+    "requires_bearer": false,
+    "operation_id": "login-login_access_token",
+    "executed_live": false
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/login/test-token",
+    "tag": "login",
+    "requires_bearer": true,
+    "operation_id": "login-test_token",
+    "executed_live": false
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/password-recovery/{email}",
+    "tag": "login",
+    "requires_bearer": false,
+    "operation_id": "login-recover_password",
+    "executed_live": false
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/reset-password/",
+    "tag": "login",
+    "requires_bearer": false,
+    "operation_id": "login-reset_password",
+    "executed_live": false
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/password-recovery-html-content/{email}",
+    "tag": "login",
+    "requires_bearer": true,
+    "operation_id": "login-recover_password_html_content",
+    "executed_live": false
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/users/",
+    "tag": "users",
+    "requires_bearer": true,
+    "operation_id": "users-read_users",
+    "executed_live": true
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/users/",
+    "tag": "users",
+    "requires_bearer": true,
+    "operation_id": "users-create_user",
+    "executed_live": false
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/users/me",
+    "tag": "users",
+    "requires_bearer": true,
+    "operation_id": "users-read_user_me",
+    "executed_live": true
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/v1/users/me",
+    "tag": "users",
+    "requires_bearer": true,
+    "operation_id": "users-delete_user_me",
+    "executed_live": false
+  },
+  {
+    "method": "PATCH",
+    "path": "/api/v1/users/me",
+    "tag": "users",
+    "requires_bearer": true,
+    "operation_id": "users-update_user_me",
+    "executed_live": false
+  },
+  {
+    "method": "PATCH",
+    "path": "/api/v1/users/me/password",
+    "tag": "users",
+    "requires_bearer": true,
+    "operation_id": "users-update_password_me",
+    "executed_live": false
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/users/signup",
+    "tag": "users",
+    "requires_bearer": false,
+    "operation_id": "users-register_user",
+    "executed_live": false
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/users/{user_id}",
+    "tag": "users",
+    "requires_bearer": true,
+    "operation_id": "users-read_user_by_id",
+    "executed_live": true
+  },
+  {
+    "method": "PATCH",
+    "path": "/api/v1/users/{user_id}",
+    "tag": "users",
+    "requires_bearer": true,
+    "operation_id": "users-update_user",
+    "executed_live": false
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/v1/users/{user_id}",
+    "tag": "users",
+    "requires_bearer": true,
+    "operation_id": "users-delete_user",
+    "executed_live": false
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/utils/test-email/",
+    "tag": "utils",
+    "requires_bearer": true,
+    "operation_id": "utils-test_email",
+    "executed_live": false
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/utils/health-check/",
+    "tag": "utils",
+    "requires_bearer": false,
+    "operation_id": "utils-health_check",
+    "executed_live": true
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/items/",
+    "tag": "items",
+    "requires_bearer": true,
+    "operation_id": "items-read_items",
+    "executed_live": true
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/items/",
+    "tag": "items",
+    "requires_bearer": true,
+    "operation_id": "items-create_item",
+    "executed_live": false
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/items/{id}",
+    "tag": "items",
+    "requires_bearer": true,
+    "operation_id": "items-read_item",
+    "executed_live": true
+  },
+  {
+    "method": "PUT",
+    "path": "/api/v1/items/{id}",
+    "tag": "items",
+    "requires_bearer": true,
+    "operation_id": "items-update_item",
+    "executed_live": false
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/v1/items/{id}",
+    "tag": "items",
+    "requires_bearer": true,
+    "operation_id": "items-delete_item",
+    "executed_live": false
+  }
+]

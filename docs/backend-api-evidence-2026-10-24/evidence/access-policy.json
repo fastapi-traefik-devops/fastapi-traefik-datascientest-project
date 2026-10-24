@@ -1,0 +1,21 @@
+{
+  "documented_utc": "2026-10-24T14:59:18.894197+00:00",
+  "policy_source": "Project owner clarification in the task on 24 October 2026",
+  "requirement": "DEV/STAGE external access requires the approved Cloudflare protection; developers otherwise work internally. Unprotected automated clients are intentionally blocked.",
+  "raw_records_unchanged": true,
+  "attribution_limit": "Observed TLS refusal is consistent with the stated policy; Cloudflare configuration/event logs were not inspected to verify the specific rule.",
+  "records": {
+    "dev-public.json": {
+      "sha256": "2e8f2250a062e3eac9b1e4f4be973b950e7f4b6ad80346927a2b355b8763b992",
+      "classification": "EXPECTED_BLOCK",
+      "availability_scoring": "excluded",
+      "explanation": "Unauthenticated public automated client denied, consistent with owner-confirmed Cloudflare bot protection for DEV/STAGE."
+    },
+    "stage-public.json": {
+      "sha256": "97e5cea45726ae64586b3e3e427c7144fb19a653bc8fd4aa6b7a3f9cfb476d5b",
+      "classification": "EXPECTED_BLOCK",
+      "availability_scoring": "excluded",
+      "explanation": "Unauthenticated public automated client denied, consistent with owner-confirmed Cloudflare bot protection for DEV/STAGE."
+    }
+  }
+}

@@ -1,0 +1,79 @@
+newman
+
+Liora FastAPI — read-only live checks
+
+❏ Read-only live checks
+↳ Health — backend is responding
+  GET https://liora.aprt.info/api/v1/utils/health-check/ [200 OK, 142B, 640ms]
+  ✓  Expected HTTP 200
+  ✓  JSON response
+  ✓  Expected response body
+
+↳ OpenAPI — public backend contract
+  GET https://liora.aprt.info/api/v1/openapi.json [200 OK, 17.82kB, 778ms]
+  ✓  Expected HTTP 200
+  ✓  JSON response
+  ✓  OpenAPI contract has users, items and login
+
+↳ Users — unauthenticated list
+  GET https://liora.aprt.info/api/v1/users/ [401 Unauthorized, 205B, 122ms]
+  ✓  Expected HTTP 401
+  ✓  JSON response
+  ✓  Expected response body
+
+↳ Users — unauthenticated profile
+  GET https://liora.aprt.info/api/v1/users/me [401 Unauthorized, 205B, 106ms]
+  ✓  Expected HTTP 401
+  ✓  JSON response
+  ✓  Expected response body
+
+↳ Users — unauthenticated by ID
+  GET https://liora.aprt.info/api/v1/users/00000000-0000-4000-8000-000000000000 [401 Unauthorized, 205B, 103ms]
+  ✓  Expected HTTP 401
+  ✓  JSON response
+  ✓  Expected response body
+
+↳ Items — unauthenticated list
+  GET https://liora.aprt.info/api/v1/items/ [401 Unauthorized, 205B, 99ms]
+  ✓  Expected HTTP 401
+  ✓  JSON response
+  ✓  Expected response body
+
+↳ Items — unauthenticated by ID
+  GET https://liora.aprt.info/api/v1/items/00000000-0000-4000-8000-000000000000 [401 Unauthorized, 205B, 120ms]
+  ✓  Expected HTTP 401
+  ✓  JSON response
+  ✓  Expected response body
+
+↳ Users — invalid bearer is rejected
+  GET https://liora.aprt.info/api/v1/users/me [403 Forbidden, 189B, 75ms]
+  ✓  Expected HTTP 403
+  ✓  JSON response
+  ✓  Expected response body
+
+↳ Unknown API route — JSON 404
+  GET https://liora.aprt.info/api/v1/route-does-not-exist [404 Not Found, 168B, 126ms]
+  ✓  Expected HTTP 404
+  ✓  JSON response
+  ✓  Expected response body
+
+┌─────────────────────────┬────────────────────┬────────────────────┐
+│                         │           executed │             failed │
+├─────────────────────────┼────────────────────┼────────────────────┤
+│              iterations │                  1 │                  0 │
+├─────────────────────────┼────────────────────┼────────────────────┤
+│                requests │                  9 │                  0 │
+├─────────────────────────┼────────────────────┼────────────────────┤
+│            test-scripts │                  9 │                  0 │
+├─────────────────────────┼────────────────────┼────────────────────┤
+│      prerequest-scripts │                  0 │                  0 │
+├─────────────────────────┼────────────────────┼────────────────────┤
+│              assertions │                 27 │                  0 │
+├─────────────────────────┴────────────────────┴────────────────────┤
+│ total run duration: 3.3s                                          │
+├───────────────────────────────────────────────────────────────────┤
+│ total data received: 17.89kB (approx)                             │
+├───────────────────────────────────────────────────────────────────┤
+│ average response time: 241ms [min: 75ms, max: 778ms, s.d.: 252ms] │
+└───────────────────────────────────────────────────────────────────┘
+RESULT: prod/private, 9 GET requests, 0 failures; TLS verification enabled

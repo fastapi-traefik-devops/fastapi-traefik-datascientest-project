@@ -1,0 +1,409 @@
+{
+  "started_utc": "2026-10-24T14:36:19.438Z",
+  "finished_utc": "2026-10-24T14:36:22.155Z",
+  "origin": "user local PC",
+  "environment": "dev",
+  "route": "private",
+  "host": "dev.liora.aprt.info",
+  "connect_ip": "192.168.77.240",
+  "tls_verification": true,
+  "newman_version": "6.2.2",
+  "collection": "liora-readonly.postman_collection.json",
+  "stats": {
+    "iterations": {
+      "total": 1,
+      "pending": 0,
+      "failed": 0
+    },
+    "items": {
+      "total": 9,
+      "pending": 0,
+      "failed": 0
+    },
+    "scripts": {
+      "total": 9,
+      "pending": 0,
+      "failed": 0
+    },
+    "prerequests": {
+      "total": 9,
+      "pending": 0,
+      "failed": 0
+    },
+    "requests": {
+      "total": 9,
+      "pending": 0,
+      "failed": 0
+    },
+    "tests": {
+      "total": 9,
+      "pending": 0,
+      "failed": 0
+    },
+    "assertions": {
+      "total": 27,
+      "pending": 0,
+      "failed": 0
+    },
+    "testScripts": {
+      "total": 9,
+      "pending": 0,
+      "failed": 0
+    },
+    "prerequestScripts": {
+      "total": 0,
+      "pending": 0,
+      "failed": 0
+    }
+  },
+  "failure_count": 0,
+  "executions": [
+    {
+      "request": "Health \u2014 backend is responding",
+      "method": "GET",
+      "url": "https://dev.liora.aprt.info/api/v1/utils/health-check/",
+      "http_status": 200,
+      "response_ms": 390,
+      "response_body": "true",
+      "response_headers": [
+        {
+          "key": "Content-Type",
+          "value": "application/json"
+        },
+        {
+          "key": "Server",
+          "value": "uvicorn"
+        }
+      ],
+      "assertions": [
+        {
+          "name": "Expected HTTP 200",
+          "passed": true,
+          "error": null
+        },
+        {
+          "name": "JSON response",
+          "passed": true,
+          "error": null
+        },
+        {
+          "name": "Expected response body",
+          "passed": true,
+          "error": null
+        }
+      ],
+      "transport_error": null
+    },
+    {
+      "request": "OpenAPI \u2014 public backend contract",
+      "method": "GET",
+      "url": "https://dev.liora.aprt.info/api/v1/openapi.json",
+      "http_status": 200,
+      "response_ms": 173,
+      "response_body": "[Public OpenAPI body stored in openapi.dev.json; see recorded SHA-256]",
+      "response_headers": [
+        {
+          "key": "Content-Type",
+          "value": "application/json"
+        },
+        {
+          "key": "Server",
+          "value": "uvicorn"
+        }
+      ],
+      "assertions": [
+        {
+          "name": "Expected HTTP 200",
+          "passed": true,
+          "error": null
+        },
+        {
+          "name": "JSON response",
+          "passed": true,
+          "error": null
+        },
+        {
+          "name": "OpenAPI contract has users, items and login",
+          "passed": true,
+          "error": null
+        }
+      ],
+      "transport_error": null,
+      "openapi_response_sha256": "0b5bfdbd1be04136e7fec01659c73fad51662f661743d3a9930f92a03459f81a",
+      "openapi_response_bytes": 17563,
+      "openapi_capture_path": "openapi.dev.json"
+    },
+    {
+      "request": "Users \u2014 unauthenticated list",
+      "method": "GET",
+      "url": "https://dev.liora.aprt.info/api/v1/users/",
+      "http_status": 401,
+      "response_ms": 111,
+      "response_body": "{\"detail\":\"Not authenticated\"}",
+      "response_headers": [
+        {
+          "key": "Content-Type",
+          "value": "application/json"
+        },
+        {
+          "key": "Server",
+          "value": "uvicorn"
+        },
+        {
+          "key": "Www-Authenticate",
+          "value": "Bearer"
+        }
+      ],
+      "assertions": [
+        {
+          "name": "Expected HTTP 401",
+          "passed": true,
+          "error": null
+        },
+        {
+          "name": "JSON response",
+          "passed": true,
+          "error": null
+        },
+        {
+          "name": "Expected response body",
+          "passed": true,
+          "error": null
+        }
+      ],
+      "transport_error": null
+    },
+    {
+      "request": "Users \u2014 unauthenticated profile",
+      "method": "GET",
+      "url": "https://dev.liora.aprt.info/api/v1/users/me",
+      "http_status": 401,
+      "response_ms": 81,
+      "response_body": "{\"detail\":\"Not authenticated\"}",
+      "response_headers": [
+        {
+          "key": "Content-Type",
+          "value": "application/json"
+        },
+        {
+          "key": "Server",
+          "value": "uvicorn"
+        },
+        {
+          "key": "Www-Authenticate",
+          "value": "Bearer"
+        }
+      ],
+      "assertions": [
+        {
+          "name": "Expected HTTP 401",
+          "passed": true,
+          "error": null
+        },
+        {
+          "name": "JSON response",
+          "passed": true,
+          "error": null
+        },
+        {
+          "name": "Expected response body",
+          "passed": true,
+          "error": null
+        }
+      ],
+      "transport_error": null
+    },
+    {
+      "request": "Users \u2014 unauthenticated by ID",
+      "method": "GET",
+      "url": "https://dev.liora.aprt.info/api/v1/users/00000000-0000-4000-8000-000000000000",
+      "http_status": 401,
+      "response_ms": 101,
+      "response_body": "{\"detail\":\"Not authenticated\"}",
+      "response_headers": [
+        {
+          "key": "Content-Type",
+          "value": "application/json"
+        },
+        {
+          "key": "Server",
+          "value": "uvicorn"
+        },
+        {
+          "key": "Www-Authenticate",
+          "value": "Bearer"
+        }
+      ],
+      "assertions": [
+        {
+          "name": "Expected HTTP 401",
+          "passed": true,
+          "error": null
+        },
+        {
+          "name": "JSON response",
+          "passed": true,
+          "error": null
+        },
+        {
+          "name": "Expected response body",
+          "passed": true,
+          "error": null
+        }
+      ],
+      "transport_error": null
+    },
+    {
+      "request": "Items \u2014 unauthenticated list",
+      "method": "GET",
+      "url": "https://dev.liora.aprt.info/api/v1/items/",
+      "http_status": 401,
+      "response_ms": 117,
+      "response_body": "{\"detail\":\"Not authenticated\"}",
+      "response_headers": [
+        {
+          "key": "Content-Type",
+          "value": "application/json"
+        },
+        {
+          "key": "Server",
+          "value": "uvicorn"
+        },
+        {
+          "key": "Www-Authenticate",
+          "value": "Bearer"
+        }
+      ],
+      "assertions": [
+        {
+          "name": "Expected HTTP 401",
+          "passed": true,
+          "error": null
+        },
+        {
+          "name": "JSON response",
+          "passed": true,
+          "error": null
+        },
+        {
+          "name": "Expected response body",
+          "passed": true,
+          "error": null
+        }
+      ],
+      "transport_error": null
+    },
+    {
+      "request": "Items \u2014 unauthenticated by ID",
+      "method": "GET",
+      "url": "https://dev.liora.aprt.info/api/v1/items/00000000-0000-4000-8000-000000000000",
+      "http_status": 401,
+      "response_ms": 84,
+      "response_body": "{\"detail\":\"Not authenticated\"}",
+      "response_headers": [
+        {
+          "key": "Content-Type",
+          "value": "application/json"
+        },
+        {
+          "key": "Server",
+          "value": "uvicorn"
+        },
+        {
+          "key": "Www-Authenticate",
+          "value": "Bearer"
+        }
+      ],
+      "assertions": [
+        {
+          "name": "Expected HTTP 401",
+          "passed": true,
+          "error": null
+        },
+        {
+          "name": "JSON response",
+          "passed": true,
+          "error": null
+        },
+        {
+          "name": "Expected response body",
+          "passed": true,
+          "error": null
+        }
+      ],
+      "transport_error": null
+    },
+    {
+      "request": "Users \u2014 invalid bearer is rejected",
+      "method": "GET",
+      "url": "https://dev.liora.aprt.info/api/v1/users/me",
+      "http_status": 403,
+      "response_ms": 84,
+      "response_body": "{\"detail\":\"Could not validate credentials\"}",
+      "response_headers": [
+        {
+          "key": "Content-Type",
+          "value": "application/json"
+        },
+        {
+          "key": "Server",
+          "value": "uvicorn"
+        }
+      ],
+      "assertions": [
+        {
+          "name": "Expected HTTP 403",
+          "passed": true,
+          "error": null
+        },
+        {
+          "name": "JSON response",
+          "passed": true,
+          "error": null
+        },
+        {
+          "name": "Expected response body",
+          "passed": true,
+          "error": null
+        }
+      ],
+      "transport_error": null
+    },
+    {
+      "request": "Unknown API route \u2014 JSON 404",
+      "method": "GET",
+      "url": "https://dev.liora.aprt.info/api/v1/route-does-not-exist",
+      "http_status": 404,
+      "response_ms": 101,
+      "response_body": "{\"detail\":\"Not Found\"}",
+      "response_headers": [
+        {
+          "key": "Content-Type",
+          "value": "application/json"
+        },
+        {
+          "key": "Server",
+          "value": "uvicorn"
+        }
+      ],
+      "assertions": [
+        {
+          "name": "Expected HTTP 404",
+          "passed": true,
+          "error": null
+        },
+        {
+          "name": "JSON response",
+          "passed": true,
+          "error": null
+        },
+        {
+          "name": "Expected response body",
+          "passed": true,
+          "error": null
+        }
+      ],
+      "transport_error": null
+    }
+  ]
+}

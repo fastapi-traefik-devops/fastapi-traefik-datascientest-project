@@ -1,0 +1,1937 @@
+{
+  "info": {
+    "_postman_id": "876514ec-67da-4242-be84-01e751870b5c",
+    "name": "Liora FastAPI \u2014 all backend examples (not a live test run)",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "description": "All 22 operations from the actual DEV OpenAPI contract. Saved responses are illustrative schema-derived examples, never execution evidence. Default host example.invalid prevents accidental live writes. For a future authorized fixture run, choose a test environment and local-only credentials. Password recovery/email and account deletion examples have real side effects if retargeted."
+  },
+  "variable": [
+    {
+      "key": "example_base_url",
+      "value": "https://example.invalid",
+      "type": "string"
+    },
+    {
+      "key": "username",
+      "value": "api-example@example.invalid",
+      "type": "string"
+    },
+    {
+      "key": "example_password",
+      "value": "EXAMPLE-ONLY-not-a-real-password",
+      "type": "string"
+    },
+    {
+      "key": "access_token",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "reset_token",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "user_id",
+      "value": "00000000-0000-4000-8000-000000000000",
+      "type": "string"
+    },
+    {
+      "key": "item_id",
+      "value": "00000000-0000-4000-8000-000000000000",
+      "type": "string"
+    },
+    {
+      "key": "email",
+      "value": "api-example@example.invalid",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "login",
+      "item": [
+        {
+          "name": "POST /api/v1/login/access-token \u2014 Login Access Token",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": "{{example_base_url}}/api/v1/login/access-token",
+            "description": "OAuth2 compatible token login, get an access token for future requests\n\nDOCUMENTATION EXAMPLE ONLY. Default example_base_url is https://example.invalid so this collection cannot modify a live environment accidentally. No live credential or data is included.",
+            "auth": {
+              "type": "noauth"
+            },
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                {
+                  "key": "username",
+                  "value": "{{username}}",
+                  "type": "text"
+                },
+                {
+                  "key": "password",
+                  "value": "{{example_password}}",
+                  "type": "text"
+                }
+              ]
+            }
+          },
+          "response": [
+            {
+              "name": "ILLUSTRATIVE schema-derived 200 \u2014 not a captured live result",
+              "originalRequest": {
+                "method": "POST",
+                "header": [],
+                "url": "{{example_base_url}}/api/v1/login/access-token",
+                "description": "OAuth2 compatible token login, get an access token for future requests\n\nDOCUMENTATION EXAMPLE ONLY. Default example_base_url is https://example.invalid so this collection cannot modify a live environment accidentally. No live credential or data is included.",
+                "auth": {
+                  "type": "noauth"
+                },
+                "body": {
+                  "mode": "urlencoded",
+                  "urlencoded": [
+                    {
+                      "key": "username",
+                      "value": "{{username}}",
+                      "type": "text"
+                    },
+                    {
+                      "key": "password",
+                      "value": "{{example_password}}",
+                      "type": "text"
+                    }
+                  ]
+                }
+              },
+              "status": "Successful Response",
+              "code": 200,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"access_token\": \"example-value\"\n}"
+            },
+            {
+              "name": "ILLUSTRATIVE schema-derived 422 \u2014 not a captured live result",
+              "originalRequest": {
+                "method": "POST",
+                "header": [],
+                "url": "{{example_base_url}}/api/v1/login/access-token",
+                "description": "OAuth2 compatible token login, get an access token for future requests\n\nDOCUMENTATION EXAMPLE ONLY. Default example_base_url is https://example.invalid so this collection cannot modify a live environment accidentally. No live credential or data is included.",
+                "auth": {
+                  "type": "noauth"
+                },
+                "body": {
+                  "mode": "urlencoded",
+                  "urlencoded": [
+                    {
+                      "key": "username",
+                      "value": "{{username}}",
+                      "type": "text"
+                    },
+                    {
+                      "key": "password",
+                      "value": "{{example_password}}",
+                      "type": "text"
+                    }
+                  ]
+                }
+              },
+              "status": "Validation Error",
+              "code": 422,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{}"
+            }
+          ]
+        },
+        {
+          "name": "POST /api/v1/login/test-token \u2014 Test Token",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": "{{example_base_url}}/api/v1/login/test-token",
+            "description": "Test access token\n\nDOCUMENTATION EXAMPLE ONLY. Default example_base_url is https://example.invalid so this collection cannot modify a live environment accidentally. No live credential or data is included.",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{access_token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "response": [
+            {
+              "name": "ILLUSTRATIVE schema-derived 200 \u2014 not a captured live result",
+              "originalRequest": {
+                "method": "POST",
+                "header": [],
+                "url": "{{example_base_url}}/api/v1/login/test-token",
+                "description": "Test access token\n\nDOCUMENTATION EXAMPLE ONLY. Default example_base_url is https://example.invalid so this collection cannot modify a live environment accidentally. No live credential or data is included.",
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{access_token}}",
+                      "type": "string"
+                    }
+                  ]
+                }
+              },
+              "status": "Successful Response",
+              "code": 200,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"email\": \"api-example@example.invalid\",\n  \"full_name\": \"example-value\",\n  \"id\": \"00000000-0000-4000-8000-000000000000\"\n}"
+            }
+          ]
+        },
+        {
+          "name": "POST /api/v1/password-recovery/{email} \u2014 Recover Password",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": "{{example_base_url}}/api/v1/password-recovery/{{email}}",
+            "description": "Password Recovery\n\nDOCUMENTATION EXAMPLE ONLY. Default example_base_url is https://example.invalid so this collection cannot modify a live environment accidentally. No live credential or data is included.",
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "response": [
+            {
+              "name": "ILLUSTRATIVE schema-derived 200 \u2014 not a captured live result",
+              "originalRequest": {
+                "method": "POST",
+                "header": [],
+                "url": "{{example_base_url}}/api/v1/password-recovery/{{email}}",
+                "description": "Password Recovery\n\nDOCUMENTATION EXAMPLE ONLY. Default example_base_url is https://example.invalid so this collection cannot modify a live environment accidentally. No live credential or data is included.",
+                "auth": {
+                  "type": "noauth"
+                }
+              },
+              "status": "Successful Response",
+              "code": 200,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"message\": \"example-value\"\n}"
+            },
+            {
+              "name": "ILLUSTRATIVE schema-derived 422 \u2014 not a captured live result",
+              "originalRequest": {
+                "method": "POST",
+                "header": [],
+                "url": "{{example_base_url}}/api/v1/password-recovery/{{email}}",
+                "description": "Password Recovery\n\nDOCUMENTATION EXAMPLE ONLY. Default example_base_url is https://example.invalid so this collection cannot modify a live environment accidentally. No live credential or data is included.",
+                "auth": {
+                  "type": "noauth"
+                }
+              },
+              "status": "Validation Error",
+              "code": 422,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{}"
+            }
+          ]
+        },
+        {
+          "name": "POST /api/v1/reset-password/ \u2014 Reset Password",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{example_base_url}}/api/v1/reset-password/",
+            "description": "Reset password\n\nDOCUMENTATION EXAMPLE ONLY. Default example_base_url is https://example.invalid so this collection cannot modify a live environment accidentally. No live credential or data is included.",
+            "auth": {
+              "type": "noauth"
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"token\": \"{{reset_token}}\",\n  \"new_password\": \"{{example_password}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [
+            {
+              "name": "ILLUSTRATIVE schema-derived 200 \u2014 not a captured live result",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": "{{example_base_url}}/api/v1/reset-password/",
+                "description": "Reset password\n\nDOCUMENTATION EXAMPLE ONLY. Default example_base_url is https://example.invalid so this collection cannot modify a live environment accidentally. No live credential or data is included.",
+                "auth": {
+                  "type": "noauth"
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"token\": \"{{reset_token}}\",\n  \"new_password\": \"{{example_password}}\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "status": "Successful Response",
+              "code": 200,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"message\": \"example-value\"\n}"
+            },
+            {
+              "name": "ILLUSTRATIVE schema-derived 422 \u2014 not a captured live result",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": "{{example_base_url}}/api/v1/reset-password/",
+                "description": "Reset password\n\nDOCUMENTATION EXAMPLE ONLY. Default example_base_url is https://example.invalid so this collection cannot modify a live environment accidentally. No live credential or data is included.",
+                "auth": {
+                  "type": "noauth"
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"token\": \"{{reset_token}}\",\n  \"new_password\": \"{{example_password}}\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "status": "Validation Error",
+              "code": 422,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{}"
+            }
+          ]
+        },
+        {
+          "name": "POST /api/v1/password-recovery-html-content/{email} \u2014 Recover Password Html Content",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": "{{example_base_url}}/api/v1/password-recovery-html-content/{{email}}",
+            "description": "HTML Content for Password Recovery\n\nDOCUMENTATION EXAMPLE ONLY. Default example_base_url is https://example.invalid so this collection cannot modify a live environment accidentally. No live credential or data is included.",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{access_token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "response": [
+            {
+              "name": "ILLUSTRATIVE schema-derived 200 \u2014 not a captured live result",
+              "originalRequest": {
+                "method": "POST",
+                "header": [],
+                "url": "{{example_base_url}}/api/v1/password-recovery-html-content/{{email}}",
+                "description": "HTML Content for Password Recovery\n\nDOCUMENTATION EXAMPLE ONLY. Default example_base_url is https://example.invalid so this collection cannot modify a live environment accidentally. No live credential or data is included.",
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{access_token}}",
+                      "type": "string"
+                    }
+                  ]
+                }
+              },
+              "status": "Successful Response",
+              "code": 200,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "\"example-value\""
+            },
+            {
+              "name": "ILLUSTRATIVE schema-derived 422 \u2014 not a captured live result",
+              "originalRequest": {
+                "method": "POST",
+                "header": [],
+                "url": "{{example_base_url}}/api/v1/password-recovery-html-content/{{email}}",
+                "description": "HTML Content for Password Recovery\n\nDOCUMENTATION EXAMPLE ONLY. Default example_base_url is https://example.invalid so this collection cannot modify a live environment accidentally. No live credential or data is included.",
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{access_token}}",
+                      "type": "string"
+                    }
+                  ]
+                }
+              },
+              "status": "Validation Error",
+              "code": 422,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{}"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "users",
+      "item": [
+        {
+          "name": "GET /api/v1/users/ \u2014 Read Users",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{example_base_url}}/api/v1/users/?skip=0&limit=100",
+            "description": "Retrieve users.\n\nDOCUMENTATION EXAMPLE ONLY. Default example_base_url is https://example.invalid so this collection cannot modify a live environment accidentally. No live credential or data is included.",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{access_token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "response": [
+            {
+              "name": "ILLUSTRATIVE schema-derived 200 \u2014 not a captured live result",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": "{{example_base_url}}/api/v1/users/?skip=0&limit=100",
+                "description": "Retrieve users.\n\nDOCUMENTATION EXAMPLE ONLY. Default example_base_url is https://example.invalid so this collection cannot modify a live environment accidentally. No live credential or data is included.",
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{access_token}}",
+                      "type": "string"
+                    }
+                  ]
+                }
+              },
+              "status": "Successful Response",
+              "code": 200,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"data\": [\n    {\n      \"email\": \"api-example@example.invalid\",\n      \"full_name\": \"example-value\",\n      \"id\": \"00000000-0000-4000-8000-000000000000\"\n    }\n  ],\n  \"count\": 1\n}"
+            },
+            {
+              "name": "ILLUSTRATIVE schema-derived 422 \u2014 not a captured live result",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": "{{example_base_url}}/api/v1/users/?skip=0&limit=100",
+                "description": "Retrieve users.\n\nDOCUMENTATION EXAMPLE ONLY. Default example_base_url is https://example.invalid so this collection cannot modify a live environment accidentally. No live credential or data is included.",
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{access_token}}",
+                      "type": "string"
+                    }
+                  ]
+                }
+              },
+              "status": "Validation Error",
+              "code": 422,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{}"
+            }
+          ]
+        },
+        {
+          "name": "POST /api/v1/users/ \u2014 Create User",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{example_base_url}}/api/v1/users/",
+            "description": "Create new user.\n\nDOCUMENTATION EXAMPLE ONLY. Default example_base_url is https://example.invalid so this collection cannot modify a live environment accidentally. No live credential or data is included.",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{access_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"api-example@example.invalid\",\n  \"full_name\": \"API Example User\",\n  \"password\": \"{{example_password}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [
+            {
+              "name": "ILLUSTRATIVE schema-derived 200 \u2014 not a captured live result",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": "{{example_base_url}}/api/v1/users/",
+                "description": "Create new user.\n\nDOCUMENTATION EXAMPLE ONLY. Default example_base_url is https://example.invalid so this collection cannot modify a live environment accidentally. No live credential or data is included.",
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{access_token}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"email\": \"api-example@example.invalid\",\n  \"full_name\": \"API Example User\",\n  \"password\": \"{{example_password}}\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "status": "Successful Response",
+              "code": 200,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"email\": \"api-example@example.invalid\",\n  \"full_name\": \"example-value\",\n  \"id\": \"00000000-0000-4000-8000-000000000000\"\n}"
+            },
+            {
+              "name": "ILLUSTRATIVE schema-derived 422 \u2014 not a captured live result",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": "{{example_base_url}}/api/v1/users/",
+                "description": "Create new user.\n\nDOCUMENTATION EXAMPLE ONLY. Default example_base_url is https://example.invalid so this collection cannot modify a live environment accidentally. No live credential or data is included.",
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{access_token}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"email\": \"api-example@example.invalid\",\n  \"full_name\": \"API Example User\",\n  \"password\": \"{{example_password}}\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "status": "Validation Error",
+              "code": 422,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{}"
+            }
+          ]
+        },
+        {
+          "name": "GET /api/v1/users/me \u2014 Read User Me",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{example_base_url}}/api/v1/users/me",
+            "description": "Get current user.\n\nDOCUMENTATION EXAMPLE ONLY. Default example_base_url is https://example.invalid so this collection cannot modify a live environment accidentally. No live credential or data is included.",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{access_token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "response": [
+            {
+              "name": "ILLUSTRATIVE schema-derived 200 \u2014 not a captured live result",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": "{{example_base_url}}/api/v1/users/me",
+                "description": "Get current user.\n\nDOCUMENTATION EXAMPLE ONLY. Default example_base_url is https://example.invalid so this collection cannot modify a live environment accidentally. No live credential or data is included.",
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{access_token}}",
+                      "type": "string"
+                    }
+                  ]
+                }
+              },
+              "status": "Successful Response",
+              "code": 200,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"email\": \"api-example@example.invalid\",\n  \"full_name\": \"example-value\",\n  \"id\": \"00000000-0000-4000-8000-000000000000\"\n}"
+            }
+          ]
+        },
+        {
+          "name": "DELETE /api/v1/users/me \u2014 Delete User Me",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": "{{example_base_url}}/api/v1/users/me",
+            "description": "Delete own user.\n\nDOCUMENTATION EXAMPLE ONLY. Default example_base_url is https://example.invalid so this collection cannot modify a live environment accidentally. No live credential or data is included.",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{access_token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "response": [
+            {
+              "name": "ILLUSTRATIVE schema-derived 200 \u2014 not a captured live result",
+              "originalRequest": {
+                "method": "DELETE",
+                "header": [],
+                "url": "{{example_base_url}}/api/v1/users/me",
+                "description": "Delete own user.\n\nDOCUMENTATION EXAMPLE ONLY. Default example_base_url is https://example.invalid so this collection cannot modify a live environment accidentally. No live credential or data is included.",
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{access_token}}",
+                      "type": "string"
+                    }
+                  ]
+                }
+              },
+              "status": "Successful Response",
+              "code": 200,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"message\": \"example-value\"\n}"
+            }
+          ]
+        },
+        {
+          "name": "PATCH /api/v1/users/me \u2014 Update User Me",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{example_base_url}}/api/v1/users/me",
+            "description": "Update own user.\n\nDOCUMENTATION EXAMPLE ONLY. Default example_base_url is https://example.invalid so this collection cannot modify a live environment accidentally. No live credential or data is included.",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{access_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"full_name\": \"API Example User\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [
+            {
+              "name": "ILLUSTRATIVE schema-derived 200 \u2014 not a captured live result",
+              "originalRequest": {
+                "method": "PATCH",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": "{{example_base_url}}/api/v1/users/me",
+                "description": "Update own user.\n\nDOCUMENTATION EXAMPLE ONLY. Default example_base_url is https://example.invalid so this collection cannot modify a live environment accidentally. No live credential or data is included.",
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{access_token}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"full_name\": \"API Example User\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "status": "Successful Response",
+              "code": 200,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"email\": \"api-example@example.invalid\",\n  \"full_name\": \"example-value\",\n  \"id\": \"00000000-0000-4000-8000-000000000000\"\n}"
+            },
+            {
+              "name": "ILLUSTRATIVE schema-derived 422 \u2014 not a captured live result",
+              "originalRequest": {
+                "method": "PATCH",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": "{{example_base_url}}/api/v1/users/me",
+                "description": "Update own user.\n\nDOCUMENTATION EXAMPLE ONLY. Default example_base_url is https://example.invalid so this collection cannot modify a live environment accidentally. No live credential or data is included.",
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{access_token}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"full_name\": \"API Example User\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "status": "Validation Error",
+              "code": 422,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{}"
+            }
+          ]
+        },
+        {
+          "name": "PATCH /api/v1/users/me/password \u2014 Update Password Me",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{example_base_url}}/api/v1/users/me/password",
+            "description": "Update own password.\n\nDOCUMENTATION EXAMPLE ONLY. Default example_base_url is https://example.invalid so this collection cannot modify a live environment accidentally. No live credential or data is included.",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{access_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"current_password\": \"{{example_password}}\",\n  \"new_password\": \"{{example_password}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [
+            {
+              "name": "ILLUSTRATIVE schema-derived 200 \u2014 not a captured live result",
+              "originalRequest": {
+                "method": "PATCH",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": "{{example_base_url}}/api/v1/users/me/password",
+                "description": "Update own password.\n\nDOCUMENTATION EXAMPLE ONLY. Default example_base_url is https://example.invalid so this collection cannot modify a live environment accidentally. No live credential or data is included.",
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{access_token}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"current_password\": \"{{example_password}}\",\n  \"new_password\": \"{{example_password}}\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "status": "Successful Response",
+              "code": 200,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"message\": \"example-value\"\n}"
+            },
+            {
+              "name": "ILLUSTRATIVE schema-derived 422 \u2014 not a captured live result",
+              "originalRequest": {
+                "method": "PATCH",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": "{{example_base_url}}/api/v1/users/me/password",
+                "description": "Update own password.\n\nDOCUMENTATION EXAMPLE ONLY. Default example_base_url is https://example.invalid so this collection cannot modify a live environment accidentally. No live credential or data is included.",
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{access_token}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"current_password\": \"{{example_password}}\",\n  \"new_password\": \"{{example_password}}\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "status": "Validation Error",
+              "code": 422,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{}"
+            }
+          ]
+        },
+        {
+          "name": "POST /api/v1/users/signup \u2014 Register User",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{example_base_url}}/api/v1/users/signup",
+            "description": "Create new user without the need to be logged in.\n\nDOCUMENTATION EXAMPLE ONLY. Default example_base_url is https://example.invalid so this collection cannot modify a live environment accidentally. No live credential or data is included.",
+            "auth": {
+              "type": "noauth"
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"api-example@example.invalid\",\n  \"password\": \"{{example_password}}\",\n  \"full_name\": \"API Example User\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [
+            {
+              "name": "ILLUSTRATIVE schema-derived 200 \u2014 not a captured live result",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": "{{example_base_url}}/api/v1/users/signup",
+                "description": "Create new user without the need to be logged in.\n\nDOCUMENTATION EXAMPLE ONLY. Default example_base_url is https://example.invalid so this collection cannot modify a live environment accidentally. No live credential or data is included.",
+                "auth": {
+                  "type": "noauth"
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"email\": \"api-example@example.invalid\",\n  \"password\": \"{{example_password}}\",\n  \"full_name\": \"API Example User\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "status": "Successful Response",
+              "code": 200,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"email\": \"api-example@example.invalid\",\n  \"full_name\": \"example-value\",\n  \"id\": \"00000000-0000-4000-8000-000000000000\"\n}"
+            },
+            {
+              "name": "ILLUSTRATIVE schema-derived 422 \u2014 not a captured live result",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": "{{example_base_url}}/api/v1/users/signup",
+                "description": "Create new user without the need to be logged in.\n\nDOCUMENTATION EXAMPLE ONLY. Default example_base_url is https://example.invalid so this collection cannot modify a live environment accidentally. No live credential or data is included.",
+                "auth": {
+                  "type": "noauth"
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"email\": \"api-example@example.invalid\",\n  \"password\": \"{{example_password}}\",\n  \"full_name\": \"API Example User\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "status": "Validation Error",
+              "code": 422,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{}"
+            }
+          ]
+        },
+        {
+          "name": "GET /api/v1/users/{user_id} \u2014 Read User By Id",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{example_base_url}}/api/v1/users/{{user_id}}",
+            "description": "Get a specific user by id.\n\nDOCUMENTATION EXAMPLE ONLY. Default example_base_url is https://example.invalid so this collection cannot modify a live environment accidentally. No live credential or data is included.",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{access_token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "response": [
+            {
+              "name": "ILLUSTRATIVE schema-derived 200 \u2014 not a captured live result",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": "{{example_base_url}}/api/v1/users/{{user_id}}",
+                "description": "Get a specific user by id.\n\nDOCUMENTATION EXAMPLE ONLY. Default example_base_url is https://example.invalid so this collection cannot modify a live environment accidentally. No live credential or data is included.",
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{access_token}}",
+                      "type": "string"
+                    }
+                  ]
+                }
+              },
+              "status": "Successful Response",
+              "code": 200,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"email\": \"api-example@example.invalid\",\n  \"full_name\": \"example-value\",\n  \"id\": \"00000000-0000-4000-8000-000000000000\"\n}"
+            },
+            {
+              "name": "ILLUSTRATIVE schema-derived 422 \u2014 not a captured live result",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": "{{example_base_url}}/api/v1/users/{{user_id}}",
+                "description": "Get a specific user by id.\n\nDOCUMENTATION EXAMPLE ONLY. Default example_base_url is https://example.invalid so this collection cannot modify a live environment accidentally. No live credential or data is included.",
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{access_token}}",
+                      "type": "string"
+                    }
+                  ]
+                }
+              },
+              "status": "Validation Error",
+              "code": 422,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{}"
+            }
+          ]
+        },
+        {
+          "name": "PATCH /api/v1/users/{user_id} \u2014 Update User",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{example_base_url}}/api/v1/users/{{user_id}}",
+            "description": "Update a user.\n\nDOCUMENTATION EXAMPLE ONLY. Default example_base_url is https://example.invalid so this collection cannot modify a live environment accidentally. No live credential or data is included.",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{access_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"full_name\": \"API Example User\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [
+            {
+              "name": "ILLUSTRATIVE schema-derived 200 \u2014 not a captured live result",
+              "originalRequest": {
+                "method": "PATCH",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": "{{example_base_url}}/api/v1/users/{{user_id}}",
+                "description": "Update a user.\n\nDOCUMENTATION EXAMPLE ONLY. Default example_base_url is https://example.invalid so this collection cannot modify a live environment accidentally. No live credential or data is included.",
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{access_token}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"full_name\": \"API Example User\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "status": "Successful Response",
+              "code": 200,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"email\": \"api-example@example.invalid\",\n  \"full_name\": \"example-value\",\n  \"id\": \"00000000-0000-4000-8000-000000000000\"\n}"
+            },
+            {
+              "name": "ILLUSTRATIVE schema-derived 422 \u2014 not a captured live result",
+              "originalRequest": {
+                "method": "PATCH",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": "{{example_base_url}}/api/v1/users/{{user_id}}",
+                "description": "Update a user.\n\nDOCUMENTATION EXAMPLE ONLY. Default example_base_url is https://example.invalid so this collection cannot modify a live environment accidentally. No live credential or data is included.",
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{access_token}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"full_name\": \"API Example User\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "status": "Validation Error",
+              "code": 422,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{}"
+            }
+          ]
+        },
+        {
+          "name": "DELETE /api/v1/users/{user_id} \u2014 Delete User",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": "{{example_base_url}}/api/v1/users/{{user_id}}",
+            "description": "Delete a user.\n\nDOCUMENTATION EXAMPLE ONLY. Default example_base_url is https://example.invalid so this collection cannot modify a live environment accidentally. No live credential or data is included.",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{access_token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "response": [
+            {
+              "name": "ILLUSTRATIVE schema-derived 200 \u2014 not a captured live result",
+              "originalRequest": {
+                "method": "DELETE",
+                "header": [],
+                "url": "{{example_base_url}}/api/v1/users/{{user_id}}",
+                "description": "Delete a user.\n\nDOCUMENTATION EXAMPLE ONLY. Default example_base_url is https://example.invalid so this collection cannot modify a live environment accidentally. No live credential or data is included.",
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{access_token}}",
+                      "type": "string"
+                    }
+                  ]
+                }
+              },
+              "status": "Successful Response",
+              "code": 200,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"message\": \"example-value\"\n}"
+            },
+            {
+              "name": "ILLUSTRATIVE schema-derived 422 \u2014 not a captured live result",
+              "originalRequest": {
+                "method": "DELETE",
+                "header": [],
+                "url": "{{example_base_url}}/api/v1/users/{{user_id}}",
+                "description": "Delete a user.\n\nDOCUMENTATION EXAMPLE ONLY. Default example_base_url is https://example.invalid so this collection cannot modify a live environment accidentally. No live credential or data is included.",
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{access_token}}",
+                      "type": "string"
+                    }
+                  ]
+                }
+              },
+              "status": "Validation Error",
+              "code": 422,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{}"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "utils",
+      "item": [
+        {
+          "name": "POST /api/v1/utils/test-email/ \u2014 Test Email",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": "{{example_base_url}}/api/v1/utils/test-email/?email_to=api-example%40example.invalid",
+            "description": "Test emails.\n\nDOCUMENTATION EXAMPLE ONLY. Default example_base_url is https://example.invalid so this collection cannot modify a live environment accidentally. No live credential or data is included.",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{access_token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "response": [
+            {
+              "name": "ILLUSTRATIVE schema-derived 201 \u2014 not a captured live result",
+              "originalRequest": {
+                "method": "POST",
+                "header": [],
+                "url": "{{example_base_url}}/api/v1/utils/test-email/?email_to=api-example%40example.invalid",
+                "description": "Test emails.\n\nDOCUMENTATION EXAMPLE ONLY. Default example_base_url is https://example.invalid so this collection cannot modify a live environment accidentally. No live credential or data is included.",
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{access_token}}",
+                      "type": "string"
+                    }
+                  ]
+                }
+              },
+              "status": "Successful Response",
+              "code": 201,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"message\": \"example-value\"\n}"
+            },
+            {
+              "name": "ILLUSTRATIVE schema-derived 422 \u2014 not a captured live result",
+              "originalRequest": {
+                "method": "POST",
+                "header": [],
+                "url": "{{example_base_url}}/api/v1/utils/test-email/?email_to=api-example%40example.invalid",
+                "description": "Test emails.\n\nDOCUMENTATION EXAMPLE ONLY. Default example_base_url is https://example.invalid so this collection cannot modify a live environment accidentally. No live credential or data is included.",
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{access_token}}",
+                      "type": "string"
+                    }
+                  ]
+                }
+              },
+              "status": "Validation Error",
+              "code": 422,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{}"
+            }
+          ]
+        },
+        {
+          "name": "GET /api/v1/utils/health-check/ \u2014 Health Check",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{example_base_url}}/api/v1/utils/health-check/",
+            "description": "\n\nDOCUMENTATION EXAMPLE ONLY. Default example_base_url is https://example.invalid so this collection cannot modify a live environment accidentally. No live credential or data is included.",
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "response": [
+            {
+              "name": "ILLUSTRATIVE schema-derived 200 \u2014 not a captured live result",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": "{{example_base_url}}/api/v1/utils/health-check/",
+                "description": "\n\nDOCUMENTATION EXAMPLE ONLY. Default example_base_url is https://example.invalid so this collection cannot modify a live environment accidentally. No live credential or data is included.",
+                "auth": {
+                  "type": "noauth"
+                }
+              },
+              "status": "Successful Response",
+              "code": 200,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "false"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "items",
+      "item": [
+        {
+          "name": "GET /api/v1/items/ \u2014 Read Items",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{example_base_url}}/api/v1/items/?skip=0&limit=100",
+            "description": "Retrieve items.\n\nDOCUMENTATION EXAMPLE ONLY. Default example_base_url is https://example.invalid so this collection cannot modify a live environment accidentally. No live credential or data is included.",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{access_token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "response": [
+            {
+              "name": "ILLUSTRATIVE schema-derived 200 \u2014 not a captured live result",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": "{{example_base_url}}/api/v1/items/?skip=0&limit=100",
+                "description": "Retrieve items.\n\nDOCUMENTATION EXAMPLE ONLY. Default example_base_url is https://example.invalid so this collection cannot modify a live environment accidentally. No live credential or data is included.",
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{access_token}}",
+                      "type": "string"
+                    }
+                  ]
+                }
+              },
+              "status": "Successful Response",
+              "code": 200,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"data\": [\n    {\n      \"title\": \"example-value\",\n      \"description\": \"example-value\",\n      \"id\": \"00000000-0000-4000-8000-000000000000\",\n      \"owner_id\": \"00000000-0000-4000-8000-000000000000\"\n    }\n  ],\n  \"count\": 1\n}"
+            },
+            {
+              "name": "ILLUSTRATIVE schema-derived 422 \u2014 not a captured live result",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": "{{example_base_url}}/api/v1/items/?skip=0&limit=100",
+                "description": "Retrieve items.\n\nDOCUMENTATION EXAMPLE ONLY. Default example_base_url is https://example.invalid so this collection cannot modify a live environment accidentally. No live credential or data is included.",
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{access_token}}",
+                      "type": "string"
+                    }
+                  ]
+                }
+              },
+              "status": "Validation Error",
+              "code": 422,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{}"
+            }
+          ]
+        },
+        {
+          "name": "POST /api/v1/items/ \u2014 Create Item",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{example_base_url}}/api/v1/items/",
+            "description": "Create new item.\n\nDOCUMENTATION EXAMPLE ONLY. Default example_base_url is https://example.invalid so this collection cannot modify a live environment accidentally. No live credential or data is included.",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{access_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"API documentation example\",\n  \"description\": \"Synthetic example only; never executed against live data.\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [
+            {
+              "name": "ILLUSTRATIVE schema-derived 200 \u2014 not a captured live result",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": "{{example_base_url}}/api/v1/items/",
+                "description": "Create new item.\n\nDOCUMENTATION EXAMPLE ONLY. Default example_base_url is https://example.invalid so this collection cannot modify a live environment accidentally. No live credential or data is included.",
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{access_token}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"title\": \"API documentation example\",\n  \"description\": \"Synthetic example only; never executed against live data.\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "status": "Successful Response",
+              "code": 200,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"title\": \"example-value\",\n  \"description\": \"example-value\",\n  \"id\": \"00000000-0000-4000-8000-000000000000\",\n  \"owner_id\": \"00000000-0000-4000-8000-000000000000\"\n}"
+            },
+            {
+              "name": "ILLUSTRATIVE schema-derived 422 \u2014 not a captured live result",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": "{{example_base_url}}/api/v1/items/",
+                "description": "Create new item.\n\nDOCUMENTATION EXAMPLE ONLY. Default example_base_url is https://example.invalid so this collection cannot modify a live environment accidentally. No live credential or data is included.",
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{access_token}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"title\": \"API documentation example\",\n  \"description\": \"Synthetic example only; never executed against live data.\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "status": "Validation Error",
+              "code": 422,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{}"
+            }
+          ]
+        },
+        {
+          "name": "GET /api/v1/items/{id} \u2014 Read Item",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{example_base_url}}/api/v1/items/{{item_id}}",
+            "description": "Get item by ID.\n\nDOCUMENTATION EXAMPLE ONLY. Default example_base_url is https://example.invalid so this collection cannot modify a live environment accidentally. No live credential or data is included.",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{access_token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "response": [
+            {
+              "name": "ILLUSTRATIVE schema-derived 200 \u2014 not a captured live result",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": "{{example_base_url}}/api/v1/items/{{item_id}}",
+                "description": "Get item by ID.\n\nDOCUMENTATION EXAMPLE ONLY. Default example_base_url is https://example.invalid so this collection cannot modify a live environment accidentally. No live credential or data is included.",
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{access_token}}",
+                      "type": "string"
+                    }
+                  ]
+                }
+              },
+              "status": "Successful Response",
+              "code": 200,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"title\": \"example-value\",\n  \"description\": \"example-value\",\n  \"id\": \"00000000-0000-4000-8000-000000000000\",\n  \"owner_id\": \"00000000-0000-4000-8000-000000000000\"\n}"
+            },
+            {
+              "name": "ILLUSTRATIVE schema-derived 422 \u2014 not a captured live result",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": "{{example_base_url}}/api/v1/items/{{item_id}}",
+                "description": "Get item by ID.\n\nDOCUMENTATION EXAMPLE ONLY. Default example_base_url is https://example.invalid so this collection cannot modify a live environment accidentally. No live credential or data is included.",
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{access_token}}",
+                      "type": "string"
+                    }
+                  ]
+                }
+              },
+              "status": "Validation Error",
+              "code": 422,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{}"
+            }
+          ]
+        },
+        {
+          "name": "PUT /api/v1/items/{id} \u2014 Update Item",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{example_base_url}}/api/v1/items/{{item_id}}",
+            "description": "Update an item.\n\nDOCUMENTATION EXAMPLE ONLY. Default example_base_url is https://example.invalid so this collection cannot modify a live environment accidentally. No live credential or data is included.",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{access_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"description\": \"Synthetic example only; never executed against live data.\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [
+            {
+              "name": "ILLUSTRATIVE schema-derived 200 \u2014 not a captured live result",
+              "originalRequest": {
+                "method": "PUT",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": "{{example_base_url}}/api/v1/items/{{item_id}}",
+                "description": "Update an item.\n\nDOCUMENTATION EXAMPLE ONLY. Default example_base_url is https://example.invalid so this collection cannot modify a live environment accidentally. No live credential or data is included.",
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{access_token}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"description\": \"Synthetic example only; never executed against live data.\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "status": "Successful Response",
+              "code": 200,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"title\": \"example-value\",\n  \"description\": \"example-value\",\n  \"id\": \"00000000-0000-4000-8000-000000000000\",\n  \"owner_id\": \"00000000-0000-4000-8000-000000000000\"\n}"
+            },
+            {
+              "name": "ILLUSTRATIVE schema-derived 422 \u2014 not a captured live result",
+              "originalRequest": {
+                "method": "PUT",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": "{{example_base_url}}/api/v1/items/{{item_id}}",
+                "description": "Update an item.\n\nDOCUMENTATION EXAMPLE ONLY. Default example_base_url is https://example.invalid so this collection cannot modify a live environment accidentally. No live credential or data is included.",
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{access_token}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"description\": \"Synthetic example only; never executed against live data.\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "status": "Validation Error",
+              "code": 422,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{}"
+            }
+          ]
+        },
+        {
+          "name": "DELETE /api/v1/items/{id} \u2014 Delete Item",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": "{{example_base_url}}/api/v1/items/{{item_id}}",
+            "description": "Delete an item.\n\nDOCUMENTATION EXAMPLE ONLY. Default example_base_url is https://example.invalid so this collection cannot modify a live environment accidentally. No live credential or data is included.",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{access_token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "response": [
+            {
+              "name": "ILLUSTRATIVE schema-derived 200 \u2014 not a captured live result",
+              "originalRequest": {
+                "method": "DELETE",
+                "header": [],
+                "url": "{{example_base_url}}/api/v1/items/{{item_id}}",
+                "description": "Delete an item.\n\nDOCUMENTATION EXAMPLE ONLY. Default example_base_url is https://example.invalid so this collection cannot modify a live environment accidentally. No live credential or data is included.",
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{access_token}}",
+                      "type": "string"
+                    }
+                  ]
+                }
+              },
+              "status": "Successful Response",
+              "code": 200,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"message\": \"example-value\"\n}"
+            },
+            {
+              "name": "ILLUSTRATIVE schema-derived 422 \u2014 not a captured live result",
+              "originalRequest": {
+                "method": "DELETE",
+                "header": [],
+                "url": "{{example_base_url}}/api/v1/items/{{item_id}}",
+                "description": "Delete an item.\n\nDOCUMENTATION EXAMPLE ONLY. Default example_base_url is https://example.invalid so this collection cannot modify a live environment accidentally. No live credential or data is included.",
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{access_token}}",
+                      "type": "string"
+                    }
+                  ]
+                }
+              },
+              "status": "Validation Error",
+              "code": 422,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{}"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

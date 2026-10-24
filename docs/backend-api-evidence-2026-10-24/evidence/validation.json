@@ -1,0 +1,14 @@
+{
+  "status": "PASS",
+  "files_checked": 45,
+  "example_operations": 22,
+  "unique_genuine_screenshots": 9,
+  "passing_newman_runs": 4,
+  "expected_public_blocked_runs": 2,
+  "passing_assertions": 108,
+  "syntax_links_provenance_and_credential_pattern_checks": "PASS",
+  "scope": "Offline evidence validation; no live API request",
+  "checked_utc": "2026-10-24T15:00:36.865434+00:00",
+  "original_captures_collections_and_contracts_preserved": true,
+  "official_postman_v2_1_schema": "Previously validated; collections unchanged"
+}
