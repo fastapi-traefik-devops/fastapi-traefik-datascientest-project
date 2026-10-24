@@ -21,8 +21,12 @@ pipeline {
                 script {
                     if (!(params.BRANCH ==~ /[A-Za-z0-9._\/-]+/) || params.BRANCH.contains('..')) { error('Invalid branch name') }
                     // The real branch commit (not a merge preview), so DEV runs a SHA that exists on GitHub.
+                    // Fetch only this branch without tags: the secret scan covers the history being
+                    // deployed, not unrelated branches of other people.
                     def revision = checkout([$class: 'GitSCM', branches: [[name: "refs/heads/${params.BRANCH}"]],
-                        userRemoteConfigs: [[url: 'https://github.com/fastapi-traefik-devops/fastapi-traefik-liora-application.git']]])
+                        extensions: [[$class: 'CloneOption', honorRefspec: true, noTags: true, shallow: false]],
+                        userRemoteConfigs: [[url: 'https://github.com/fastapi-traefik-devops/fastapi-traefik-liora-application.git',
+                                             refspec: "+refs/heads/${params.BRANCH}:refs/remotes/origin/${params.BRANCH}"]]])
                     env.IMAGE_SHA = revision.GIT_COMMIT
                     if (!(env.IMAGE_SHA ==~ /[0-9a-f]{40}/)) { error('Full Git SHA required') }
                     currentBuild.description = "DEV ${params.BRANCH} @ ${env.IMAGE_SHA.take(12)}"
