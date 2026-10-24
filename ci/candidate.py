@@ -7,7 +7,8 @@ import xml.etree.ElementTree as ET
 from phase1 import PROFILES, STEPS, TEST_REPORTS, file_sha
 
 DEFERRED = [step for step in (*STEPS, "gitops") if step not in PROFILES["migration"]]
-SOURCE_JOBS = {"migration-ci", "app-ci/main"}
+# app-ci/main publishes release-attested images only (registry.validate), never this contract.
+SOURCE_JOBS = {"migration-ci"}
 
 
 def reports(directory):

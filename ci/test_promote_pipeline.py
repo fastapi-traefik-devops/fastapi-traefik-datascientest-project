@@ -49,5 +49,12 @@ class PromotePipelineTests(unittest.TestCase):
         self.assertIn('stage-acceptance.json', block(PIPELINE, 'post'))
 
 
+    def test_main_publishes_only_release_attested_candidates(self):
+        self.assertIn("env.PUBLISH_MODE = params.SOURCE_JOB == 'app-ci/main' ? 'release' : 'functional'", PIPELINE)
+        self.assertIn('--mode "$PUBLISH_MODE"', PIPELINE)
+        self.assertNotIn('--mode functional', PIPELINE)
+        copied = re.search(r"filter: '([^']+)'", PIPELINE).group(1).split(',')
+        self.assertIn('.ci-output/gates.json', copied)
+
 if __name__ == '__main__':
     unittest.main()
