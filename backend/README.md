@@ -9,6 +9,29 @@
 
 Start the local development environment with Docker Compose following the guide in [../development.md](../development.md).
 
+## PostgreSQL connection recovery
+
+The backend checks pooled database connections before each checkout using
+SQLAlchemy `pool_pre_ping`. After PostgreSQL restarts and becomes available,
+new requests replace stale connections automatically without restarting the
+backend. This adds a small database round trip on connection checkout.
+
+A database outage can still fail requests. A disconnect during an active
+transaction fails that transaction; the backend does not automatically replay
+queries or writes. The request-scoped session is closed and subsequent requests
+can reconnect. Clients must check whether a write succeeded before retrying it.
+
+Run the regression tests against a disposable PostgreSQL database using the
+normal backend test setup:
+
+```console
+pytest app/tests/scripts/test_db_connections.py
+```
+
+These tests terminate only their own database connections to reproduce stale
+idle connections and interrupted transactions. As with the other backend tests,
+use a test database, not a deployed application database.
+
 ## General Workflow
 
 By default, the dependencies are managed with [uv](https://docs.astral.sh/uv/), go there and install it.
