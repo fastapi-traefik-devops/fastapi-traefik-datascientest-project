@@ -235,5 +235,8 @@ Argo CD owns application deployment. Phase 1 Jenkins only builds and publishes i
 [Argo bootstrap and rollback](docs/template/deployment.md).
 
 `k8s/` is retained for historical/local reference. Do not apply it alongside the
-active GitOps applications. Its old sealed secrets belong to their original
-namespace/cluster. Production uses externally provisioned secrets.
+active GitOps applications. Its old encrypted credential manifests are historical artifacts, not a
+deployment or recovery mechanism for the current clusters. Provision live
+Secrets with Ansible, reviewed helpers or manually from ignored private
+`recovery/` inputs in the infrastructure repository. No live Secret payloads
+belong in Git; old journal transcripts describe their original context only.
