@@ -39,6 +39,10 @@ class DevJenkinsfileTests(unittest.TestCase):
         self.assertIn("python3 ci/phase1.py steps --profile dev", DEV)
         self.assertIn("agent { label 'host-ci' }", DEV)
 
+    def test_fetches_only_the_selected_branch(self):
+        self.assertIn('refspec: "+refs/heads/${params.BRANCH}:refs/remotes/origin/${params.BRANCH}"', DEV)
+        self.assertIn("honorRefspec: true, noTags: true", DEV)
+
     def test_rejects_unsafe_branch_names(self):
         self.assertIn("if (!(params.BRANCH ==~ /[A-Za-z0-9._\\/-]+/) || params.BRANCH.contains('..'))", DEV)
 
